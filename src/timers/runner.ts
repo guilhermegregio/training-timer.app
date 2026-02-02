@@ -29,12 +29,13 @@ function getPhaseMetronomeSettings(
 ): MetronomeSettings | undefined {
   // Se fase tem BPM próprio via [xBpm], auto-ativa o metrônomo
   if (phase.metronome) {
+    const mode = phase.metronomeMode ?? 'work'
     return {
       enabled: true,
       bpm: phase.metronome,
-      duringWork: true,
-      duringRest: true,
-      always: true, // Garante que toca independente do tipo de fase
+      duringWork: mode === 'work' || mode === 'always',
+      duringRest: mode === 'rest' || mode === 'always',
+      always: mode === 'always',
     }
   }
   return baseSettings
@@ -106,12 +107,7 @@ function showTimerScreen(): void {
   const pauseBtn = $id('btn-pause')
   if (pauseBtn) pauseBtn.textContent = 'Pause'
 
-  // Setup metronome BPM display
-  const metro = lastConfig?.metronome ?? { enabled: false, bpm: 120 }
-  const metroBpmEl = $id('metro-bpm-display')
-  if (metroBpmEl) metroBpmEl.textContent = `${metro.bpm} BPM`
-
-  // Hide indicator initially
+  // Hide metronome indicator initially - will be updated by updateTimerDisplay
   const metroEl = $id('timer-metronome')
   if (metroEl) removeClass(metroEl, 'active')
 
@@ -291,16 +287,67 @@ function nextPhase(): void {
   startMetronomeForPhase(phase, metroSettings, isPaused)
 
   updateTimerDisplay()
+  updateTimerControls()
 }
 
 function updateBlockLabel(phase: Phase): void {
   const el = $id('timer-block-label')
   if (!el) return
-  if (phase.customLabel || phase.label) {
-    el.textContent = phase.customLabel ?? phase.label?.toUpperCase() ?? ''
+
+  // Use blockLabel if available, otherwise fall back to customLabel/label
+  const label = phase.blockLabel ?? phase.customLabel ?? phase.label
+
+  if (label) {
+    el.textContent = label.toUpperCase()
     addClass(el, 'active')
   } else {
     removeClass(el, 'active')
+  }
+}
+
+function updateBlockProgress(phase: Phase): void {
+  const el = $id('timer-block-progress')
+  if (!el) return
+
+  const parts: string[] = []
+
+  // Round dentro do bloco
+  if (phase.blockRound && phase.blockTotalRounds && phase.blockTotalRounds > 1) {
+    parts.push(`Round ${phase.blockRound}/${phase.blockTotalRounds}`)
+  }
+
+  // Sub-fase (se aplicável)
+  if (phase.blockSubPhase && phase.blockSubPhaseTotal && phase.blockSubPhaseTotal > 1) {
+    parts.push(`Part ${phase.blockSubPhase}/${phase.blockSubPhaseTotal}`)
+  }
+
+  if (parts.length > 0) {
+    el.textContent = parts.join(' · ')
+    addClass(el, 'active')
+  } else {
+    removeClass(el, 'active')
+  }
+}
+
+function updateMetronomeDisplay(phase: Phase): void {
+  const metroEl = $id('timer-metronome')
+  const metroBpmEl = $id('metro-bpm-display')
+
+  if (!metroEl) return
+
+  // Determinar se metrônomo deve tocar nesta fase
+  const settings = getPhaseMetronomeSettings(phase, lastConfig?.metronome)
+  const shouldShow =
+    settings?.enabled &&
+    (settings.always ||
+      (settings.duringWork && phase.type === 'work') ||
+      (settings.duringRest && phase.type === 'rest'))
+
+  if (shouldShow && metroBpmEl) {
+    addClass(metroEl, 'active')
+    metroBpmEl.textContent = `${settings.bpm} BPM`
+  } else {
+    removeClass(metroEl, 'active')
   }
 }
 
@@ -384,12 +431,23 @@ function updateInfoDisplay(phase: Phase): void {
 function updateNextPhaseDisplay(phase: Phase): void {
   const el = $id('timer-next')
   if (!el) return
+
   const nextPhaseData = timerState.phases[timerState.currentPhaseIndex + 1]
-  if (nextPhaseData && !phase.isWait) {
-    const nextDuration = nextPhaseData.isWait ? '∞' : formatTime(nextPhaseData.duration)
-    el.textContent = `Next: ${nextPhaseData.type} ${nextDuration}`
-  } else {
+  if (!nextPhaseData || phase.isWait) {
     el.textContent = ''
+    return
+  }
+
+  const nextDuration = nextPhaseData.isWait ? '∞' : formatTime(nextPhaseData.duration)
+  const currentBlockLabel = phase.blockLabel ?? phase.customLabel ?? phase.label
+  const nextBlockLabel =
+    nextPhaseData.blockLabel ?? nextPhaseData.customLabel ?? nextPhaseData.label
+
+  // Se próxima fase é de bloco diferente, mostrar label
+  if (nextBlockLabel && nextBlockLabel !== currentBlockLabel) {
+    el.textContent = `Next: ${nextBlockLabel} - ${nextPhaseData.type} ${nextDuration}`
+  } else {
+    el.textContent = `Next: ${nextPhaseData.type} ${nextDuration}`
   }
 }
 
@@ -446,10 +504,12 @@ function updateTimerDisplay(): void {
   const color = getDisplayColor(phase)
 
   updateBlockLabel(phase)
+  updateBlockProgress(phase)
   updateExerciseDisplay(phase)
   updatePhaseLabel(phase, color)
   updateTimeDisplay(phase, color)
   updateInfoDisplay(phase)
+  updateMetronomeDisplay(phase)
   updateNextPhaseDisplay(phase)
   updateProgressBar(phase, color)
   updateStats(phase)

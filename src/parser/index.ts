@@ -1,4 +1,12 @@
-import type { BlockType, Exercise, ParsedWorkout, Phase, PhaseType, WorkoutBlock } from '@/types'
+import type {
+  BlockType,
+  Exercise,
+  MetronomeMode,
+  ParsedWorkout,
+  Phase,
+  PhaseType,
+  WorkoutBlock,
+} from '@/types'
 import { parseTimeDuration } from '@/utils/format'
 
 function expandExercisePhases(phases: Phase[]): Phase[] {
@@ -103,12 +111,21 @@ function parseExercise(text: string): Exercise {
   return exercise
 }
 
-function extractMetronome(line: string): { bpm: number | null; cleanedLine: string } {
-  const match = line.match(/\[(\d+)\s*bpm\]/i)
+function extractMetronome(line: string): {
+  bpm: number | null
+  bpmMode: MetronomeMode | null
+  cleanedLine: string
+} {
+  const match = line.match(/\[(\d+)\s*bpm(?:\s+(work|rest|always))?\]/i)
   if (match?.[1]) {
-    return { bpm: Number.parseInt(match[1], 10), cleanedLine: line.replace(match[0], '').trim() }
+    const mode = (match[2]?.toLowerCase() as MetronomeMode) ?? 'work'
+    return {
+      bpm: Number.parseInt(match[1], 10),
+      bpmMode: mode,
+      cleanedLine: line.replace(match[0], '').trim(),
+    }
   }
-  return { bpm: null, cleanedLine: line }
+  return { bpm: null, bpmMode: null, cleanedLine: line }
 }
 
 interface ParserContext {
@@ -117,12 +134,14 @@ interface ParserContext {
   currentBlockType: BlockType | null
   currentCustomLabel: string | null
   currentMetronome: number | null
+  currentMetronomeMode: MetronomeMode | null
   currentExercises: Exercise[]
   repeatCount: number
   repeatPhases: Phase[]
   inRepeat: boolean
   repeatLabel: string | null
   repeatMetronome: number | null
+  repeatMetronomeMode: MetronomeMode | null
 }
 
 function createContext(): ParserContext {
@@ -132,12 +151,14 @@ function createContext(): ParserContext {
     currentBlockType: null,
     currentCustomLabel: null,
     currentMetronome: null,
+    currentMetronomeMode: null,
     currentExercises: [],
     repeatCount: 1,
     repeatPhases: [],
     inRepeat: false,
     repeatLabel: null,
     repeatMetronome: null,
+    repeatMetronomeMode: null,
   }
 }
 
@@ -179,6 +200,7 @@ function resetRepeatState(ctx: ParserContext): void {
   ctx.repeatPhases = []
   ctx.repeatLabel = null
   ctx.repeatMetronome = null
+  ctx.repeatMetronomeMode = null
 }
 
 function expandRepeatPhases(ctx: ParserContext): Phase[] {
@@ -248,6 +270,9 @@ function createWaitPhase(ctx: ParserContext, phaseType: PhaseType): Phase {
     metronome: ctx.inRepeat
       ? (ctx.repeatMetronome ?? undefined)
       : (ctx.currentMetronome ?? undefined),
+    metronomeMode: ctx.inRepeat
+      ? (ctx.repeatMetronomeMode ?? undefined)
+      : (ctx.currentMetronomeMode ?? undefined),
   }
 }
 
@@ -379,6 +404,23 @@ function handleAmrapLine(lineLower: string, ctx: ParserContext): boolean {
   return true
 }
 
+function getContextMetronome(ctx: ParserContext): number | undefined {
+  return ctx.inRepeat ? (ctx.repeatMetronome ?? undefined) : (ctx.currentMetronome ?? undefined)
+}
+
+function getContextMetronomeMode(ctx: ParserContext): MetronomeMode | undefined {
+  return ctx.inRepeat
+    ? (ctx.repeatMetronomeMode ?? undefined)
+    : (ctx.currentMetronomeMode ?? undefined)
+}
+
+function resetContextAfterBlock(ctx: ParserContext): void {
+  ctx.currentExercises = []
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+  ctx.currentMetronomeMode = null
+}
+
 function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
   const match = lineLower.match(/^(\d+)\s*(s|sec|m|min)?\s*(work|rest)$/i)
   if (!match) return false
@@ -391,9 +433,8 @@ function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
   const phase: Phase = {
     type,
     duration,
-    metronome: ctx.inRepeat
-      ? (ctx.repeatMetronome ?? undefined)
-      : (ctx.currentMetronome ?? undefined),
+    metronome: getContextMetronome(ctx),
+    metronomeMode: getContextMetronomeMode(ctx),
   }
 
   if (ctx.inRepeat) {
@@ -416,9 +457,7 @@ function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
         ctx.currentMetronome ?? undefined
       )
     )
-    ctx.currentExercises = []
-    ctx.currentCustomLabel = null
-    ctx.currentMetronome = null
+    resetContextAfterBlock(ctx)
   }
   return true
 }
@@ -478,7 +517,9 @@ function handleRepeatLine(lineLower: string, ctx: ParserContext): boolean {
     ctx.repeatPhases = []
     ctx.repeatLabel = 'tabata'
     ctx.repeatMetronome = ctx.currentMetronome
+    ctx.repeatMetronomeMode = ctx.currentMetronomeMode
     ctx.currentMetronome = null
+    ctx.currentMetronomeMode = null
     return true
   }
   if (lineLower.match(/^(\d+)x$/)) {
@@ -490,7 +531,9 @@ function handleRepeatLine(lineLower: string, ctx: ParserContext): boolean {
     ctx.repeatPhases = []
     ctx.repeatLabel = ctx.currentBlockType ?? null
     ctx.repeatMetronome = ctx.currentMetronome
+    ctx.repeatMetronomeMode = ctx.currentMetronomeMode
     ctx.currentMetronome = null
+    ctx.currentMetronomeMode = null
     return true
   }
   if (lineLower === 'end' || lineLower === 'endrepeat') {
@@ -523,13 +566,16 @@ function getPhaseTypeFromLine(lineLower: string, blockType: BlockType | null): P
   return 'work'
 }
 
-function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
+function isTimeLineMatch(lineLower: string): boolean {
   const timeMatch =
     lineLower.match(/^(\d+):(\d+)$/) ||
     lineLower.match(/^(\d+)\s*(s|sec|seconds?)?$/) ||
     lineLower.match(/^(\d+)\s*(m|min|minutes?)$/)
+  return !!timeMatch || !!lineLower.match(/^\d+\s*(s|m|sec|min)/)
+}
 
-  if (!timeMatch && !lineLower.match(/^\d+\s*(s|m|sec|min)/)) return false
+function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
+  if (!isTimeLineMatch(lineLower)) return false
 
   const duration = parseTimeFromLine(lineLower)
   const phaseType = getPhaseTypeFromLine(lineLower, ctx.currentBlockType)
@@ -537,9 +583,8 @@ function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
   const phase: Phase = {
     type: phaseType,
     duration,
-    metronome: ctx.inRepeat
-      ? (ctx.repeatMetronome ?? undefined)
-      : (ctx.currentMetronome ?? undefined),
+    metronome: getContextMetronome(ctx),
+    metronomeMode: getContextMetronomeMode(ctx),
   }
 
   if (ctx.inRepeat) {
@@ -562,9 +607,7 @@ function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
         ctx.currentMetronome ?? undefined
       )
     )
-    ctx.currentExercises = []
-    ctx.currentCustomLabel = null
-    ctx.currentMetronome = null
+    resetContextAfterBlock(ctx)
   }
 
   ctx.currentBlockType = null
@@ -575,10 +618,15 @@ function processLine(rawLine: string, ctx: ParserContext): void {
   if (handleCommentLine(rawLine, ctx)) return
   if (handleEmptyLine(rawLine, ctx)) return
 
-  const { bpm: lineBpm, cleanedLine } = extractMetronome(rawLine)
+  const { bpm: lineBpm, bpmMode: lineBpmMode, cleanedLine } = extractMetronome(rawLine)
   if (lineBpm !== null) {
-    if (ctx.inRepeat) ctx.repeatMetronome = lineBpm
-    else ctx.currentMetronome = lineBpm
+    if (ctx.inRepeat) {
+      ctx.repeatMetronome = lineBpm
+      ctx.repeatMetronomeMode = lineBpmMode
+    } else {
+      ctx.currentMetronome = lineBpm
+      ctx.currentMetronomeMode = lineBpmMode
+    }
   }
 
   const line = cleanedLine
@@ -594,6 +642,128 @@ function processLine(rawLine: string, ctx: ParserContext): void {
   if (handleBlockTypeKeyword(lineLower, ctx)) return
   if (handleRepeatLine(lineLower, ctx)) return
   handleTimeLine(lineLower, ctx)
+}
+
+function getPhaseLabel(phase: Phase): string | undefined {
+  return phase.customLabel ?? phase.label
+}
+
+function isStandaloneRest(phase: Phase): boolean {
+  return phase.type === 'rest' && !phase.customLabel && !phase.label
+}
+
+function countPhasesPerBlock(
+  phases: Phase[]
+): Map<string, { total: number; phasesPerRound: number }> {
+  const blockPhaseCounts = new Map<string, { total: number; phasesPerRound: number }>()
+
+  for (const phase of phases) {
+    if (isStandaloneRest(phase)) continue
+
+    const label = getPhaseLabel(phase) ?? ''
+    const current = blockPhaseCounts.get(label) ?? { total: 0, phasesPerRound: 0 }
+    current.total++
+    blockPhaseCounts.set(label, current)
+  }
+
+  return blockPhaseCounts
+}
+
+function countPhasesUntilRepeat(phases: Phase[], label: string): number {
+  let firstIdx = -1
+  let count = 0
+
+  for (const p of phases) {
+    if (!p || isStandaloneRest(p)) continue
+    if ((getPhaseLabel(p) ?? '') !== label) continue
+
+    if (firstIdx === -1) {
+      firstIdx = phases.indexOf(p)
+      count = 1
+      continue
+    }
+
+    const firstPhase = phases[firstIdx]
+    if (p.type === firstPhase?.type) {
+      return count // Found pattern repeat
+    }
+    count++
+  }
+
+  return count
+}
+
+function detectPhasesPerRound(
+  phases: Phase[],
+  blockPhaseCounts: Map<string, { total: number; phasesPerRound: number }>
+): void {
+  for (const [label, info] of blockPhaseCounts) {
+    info.phasesPerRound = countPhasesUntilRepeat(phases, label)
+  }
+}
+
+interface BlockState {
+  blockId: number
+  blockLabel: string | undefined
+  roundCounter: number
+  subPhaseCounter: number
+  phasesPerRound: number
+}
+
+function assignPhaseMetadata(
+  phase: Phase,
+  state: BlockState,
+  blockPhaseCounts: Map<string, { total: number; phasesPerRound: number }>
+): void {
+  const info = blockPhaseCounts.get(getPhaseLabel(phase) ?? '')
+  const totalPhases = info?.total ?? 1
+  const totalRounds = state.phasesPerRound > 0 ? Math.ceil(totalPhases / state.phasesPerRound) : 1
+
+  phase.blockId = state.blockId
+  phase.blockLabel = getPhaseLabel(phase)
+  phase.blockRound = state.roundCounter
+  phase.blockTotalRounds = totalRounds
+  phase.blockSubPhase = state.subPhaseCounter
+  phase.blockSubPhaseTotal = state.phasesPerRound
+}
+
+function calculateBlockMetadata(phases: Phase[]): Phase[] {
+  if (phases.length === 0) return phases
+
+  const blockPhaseCounts = countPhasesPerBlock(phases)
+  detectPhasesPerRound(phases, blockPhaseCounts)
+
+  const state: BlockState = {
+    blockId: -1,
+    blockLabel: undefined,
+    roundCounter: 0,
+    subPhaseCounter: 0,
+    phasesPerRound: 0,
+  }
+
+  for (const phase of phases) {
+    if (isStandaloneRest(phase)) continue
+
+    const phaseLabel = getPhaseLabel(phase)
+
+    if (phaseLabel !== state.blockLabel) {
+      state.blockId++
+      state.blockLabel = phaseLabel
+      state.roundCounter = 1
+      state.subPhaseCounter = 1
+      state.phasesPerRound = blockPhaseCounts.get(phaseLabel ?? '')?.phasesPerRound ?? 1
+    } else {
+      state.subPhaseCounter++
+      if (state.subPhaseCounter > state.phasesPerRound) {
+        state.subPhaseCounter = 1
+        state.roundCounter++
+      }
+    }
+
+    assignPhaseMetadata(phase, state, blockPhaseCounts)
+  }
+
+  return phases
 }
 
 export function parseCustomWorkout(text: string): ParsedWorkout {
@@ -614,7 +784,10 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
     return { error: 'No valid phases found', phases: [], blocks: [] }
   }
 
-  return { phases: expandExercisePhases(ctx.phases), blocks: ctx.blocks }
+  const expandedPhases = expandExercisePhases(ctx.phases)
+  const phasesWithMetadata = calculateBlockMetadata(expandedPhases)
+
+  return { phases: phasesWithMetadata, blocks: ctx.blocks }
 }
 
 export { customPresets, intervalPresets } from './presets'

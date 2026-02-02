@@ -1152,10 +1152,24 @@ textarea {
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   display: none;
+  margin: 0 auto;
 }
 
 .timer-block-label.active {
   display: inline-block;
+}
+
+.timer-block-progress {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  margin-bottom: 4px;
+  display: none;
+}
+
+.timer-block-progress.active {
+  display: block;
 }
 
 .timer-exercise {

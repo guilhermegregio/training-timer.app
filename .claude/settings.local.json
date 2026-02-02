@@ -12,7 +12,8 @@
       "Bash(pnpm run build:*)",
       "Bash(pnpm run check:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(npm run test:run:*)"
     ]
   },
   "enabledPlugins": {

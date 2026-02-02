@@ -17,6 +17,8 @@ export interface Exercise {
   pse?: number
 }
 
+export type MetronomeMode = 'work' | 'rest' | 'always'
+
 export interface Phase {
   type: PhaseType
   duration: number
@@ -25,12 +27,21 @@ export interface Phase {
   round?: number
   exercises?: Exercise[]
   metronome?: number
+  metronomeMode?: MetronomeMode
   isWait?: boolean
   exerciseIndex?: number // 1-based index (ex: 2 of 6)
   exerciseCount?: number // Total exercises in this segment
   loopStart?: boolean // First exercise in AMRAP loop
   loopEnd?: boolean // Last exercise in AMRAP loop
   timeCap?: number // Time cap for this segment
+
+  // Block tracking for custom workouts
+  blockId?: number // Unique block ID (0, 1, 2...)
+  blockLabel?: string // Label of the block ("goblet squat", "db thruster")
+  blockRound?: number // Current round within the block (1-6)
+  blockTotalRounds?: number // Total rounds in the block (6)
+  blockSubPhase?: number // Current sub-phase within round (1-4)
+  blockSubPhaseTotal?: number // Total sub-phases per round
 }
 
 export const PHASE_COLORS: Record<PhaseType, string> = {
