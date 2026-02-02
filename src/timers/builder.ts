@@ -1,14 +1,22 @@
-import type { Phase, TimerConfig } from '@/types'
+import type {
+  AmrapConfig,
+  CountdownConfig,
+  EmomConfig,
+  ForTimeConfig,
+  IntervalsConfig,
+  Phase,
+  TimerConfig,
+} from '@/types'
 
 function buildStopwatchPhases(): Phase[] {
   return [{ type: 'stopwatch', duration: Number.POSITIVE_INFINITY }]
 }
 
-function buildCountdownPhases(config: TimerConfig): Phase[] {
+function buildCountdownPhases(config: CountdownConfig): Phase[] {
   return [{ type: 'countdown', duration: config.duration }]
 }
 
-function buildIntervalPhases(config: TimerConfig): Phase[] {
+function buildIntervalPhases(config: IntervalsConfig): Phase[] {
   const phases: Phase[] = []
   if (config.warmup > 0) phases.push({ type: 'warmup', duration: config.warmup })
   for (let i = 0; i < config.rounds; i++) {
@@ -19,7 +27,7 @@ function buildIntervalPhases(config: TimerConfig): Phase[] {
   return phases
 }
 
-function buildEmomPhases(config: TimerConfig): Phase[] {
+function buildEmomPhases(config: EmomConfig): Phase[] {
   const phases: Phase[] = []
   if (config.warmup > 0) phases.push({ type: 'warmup', duration: config.warmup })
   for (let i = 0; i < config.rounds; i++) {
@@ -29,7 +37,7 @@ function buildEmomPhases(config: TimerConfig): Phase[] {
   return phases
 }
 
-function buildAmrapPhases(config: TimerConfig): Phase[] {
+function buildAmrapPhases(config: AmrapConfig): Phase[] {
   const phases: Phase[] = []
   if (config.warmup > 0) phases.push({ type: 'warmup', duration: config.warmup })
   phases.push({ type: 'work', duration: config.timeCap })
@@ -37,7 +45,7 @@ function buildAmrapPhases(config: TimerConfig): Phase[] {
   return phases
 }
 
-function buildForTimePhases(config: TimerConfig): Phase[] {
+function buildForTimePhases(config: ForTimeConfig): Phase[] {
   const phases: Phase[] = []
   if (config.warmup > 0) phases.push({ type: 'warmup', duration: config.warmup })
   phases.push({ type: 'work', duration: config.timeCap || Number.POSITIVE_INFINITY })
@@ -45,16 +53,23 @@ function buildForTimePhases(config: TimerConfig): Phase[] {
   return phases
 }
 
-const phaseBuilders: Record<string, (config: TimerConfig) => Phase[]> = {
-  stopwatch: buildStopwatchPhases,
-  countdown: buildCountdownPhases,
-  intervals: buildIntervalPhases,
-  emom: buildEmomPhases,
-  amrap: buildAmrapPhases,
-  fortime: buildForTimePhases,
-}
-
 export function buildPhases(config: TimerConfig): Phase[] {
-  if (config.type === 'custom') return config.parsed.phases
-  return phaseBuilders[config.type]?.(config) ?? []
+  switch (config.type) {
+    case 'stopwatch':
+      return buildStopwatchPhases()
+    case 'countdown':
+      return buildCountdownPhases(config)
+    case 'intervals':
+      return buildIntervalPhases(config)
+    case 'emom':
+      return buildEmomPhases(config)
+    case 'amrap':
+      return buildAmrapPhases(config)
+    case 'fortime':
+      return buildForTimePhases(config)
+    case 'custom':
+      return config.parsed.phases
+    default:
+      return []
+  }
 }
