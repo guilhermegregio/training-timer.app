@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>HIIT Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --bg-card: #1a2332;
+      --accent: #8b5cf6;
+      --accent-light: #a78bfa;
+      --accent-dark: #7c3aed;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --cyan: #06b6d4;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #2d3a4f;
+      --border-active: #8b5cf6;
+      --glow: rgba(139, 92, 246, 0.4);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .app {
+      max-width: 500px;
+      margin: 0 auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--bg-primary);
+    }
+
+    /* Header */
+    .header {
+      padding: calc(16px + var(--safe-top)) 20px 12px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 8px 16px 12px;
+      flex-shrink: 0;
+    }
+
+    .nav-tab {
+      flex: 1;
+      padding: 14px 8px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-tab .icon { font-size: 1.3rem; }
+
+    .nav-tab.active {
+      background: var(--bg-secondary);
+      border-color: var(--accent);
+      color: var(--text-primary);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+    }
+
+    .nav-tab:active { transform: scale(0.97); }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0 16px calc(20px + var(--safe-bottom));
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--accent-light);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Config Rows - matching the screenshots exactly */
+    .config-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--bg-primary);
+      border-radius: 14px;
+      margin-bottom: 14px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .config-row:focus-within,
+    .config-row.highlighted {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .config-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .config-label .emoji { font-size: 1.3rem; }
+
+    .config-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-btn {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: white;
+      font-size: 1.6rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .config-btn:hover { background: var(--accent-light); }
+    .config-btn:active { transform: scale(0.92); }
+
+    .config-input {
+      width: 65px;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: 'Orbitron', monospace;
+      font-size: 1.15rem;
+      font-weight: 600;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+
+    .config-input::-webkit-outer-spin-button,
+    .config-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .config-input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* Toggle Switch - iOS style */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--bg-primary);
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+
+    .toggle-label {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 56px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--bg-tertiary);
+      border-radius: 32px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(24px);
+    }
+
+    /* Volume Sliders */
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--bg-primary);
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+
+    .volume-label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      min-width: 95px;
+    }
+
+    .volume-slider {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--glow);
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    .volume-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      min-width: 42px;
+      text-align: right;
+    }
+
+    /* BPM Presets */
+    .bpm-presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .bpm-preset {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .bpm-preset:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    /* Checkbox Group */
+    .checkbox-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .checkbox-item span {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    /* Start Button - matching screenshot gradient */
+    .start-btn {
+      width: 100%;
+      padding: 20px;
+      border: none;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      color: white;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: 0 4px 25px rgba(139, 92, 246, 0.35);
+      margin-top: 8px;
+    }
+
+    .start-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 35px rgba(139, 92, 246, 0.45);
+    }
+
+    .start-btn:active { transform: translateY(0); }
+
+    .start-btn .play-icon {
+      font-size: 1.3rem;
+    }
+
+    /* Timer Active Screen */
+    .timer-active {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+      min-height: calc(100vh - 180px);
+    }
+
+    .timer-active.visible { display: flex; }
+
+    .timer-phase {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 6px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .timer-phase.work {
+      color: var(--danger);
+      text-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
+    }
+
+    .timer-phase.rest {
+      color: var(--success);
+      text-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+    }
+
+    .timer-phase.warmup,
+    .timer-phase.cooldown {
+      color: var(--warning);
+      text-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+    }
+
+    .timer-phase.complete {
+      color: var(--cyan);
+      text-shadow: 0 0 40px rgba(6, 182, 212, 0.6);
+    }
+
+    .timer-display {
+      font-family: 'Orbitron', monospace;
+      font-size: 5.5rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 24px;
+      transition: color 0.3s ease;
+    }
+
+    .timer-display.work {
+      color: var(--danger);
+      text-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+    }
+
+    .timer-display.rest {
+      color: var(--success);
+      text-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .timer-display.running { animation: pulse 1s ease-in-out infinite; }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 100%;
+      max-width: 320px;
+      height: 10px;
+      background: var(--bg-tertiary);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 5px;
+      transition: width 0.1s linear, background-color 0.3s ease;
+    }
+
+    .progress-bar.work { background: var(--danger); }
+    .progress-bar.rest { background: var(--success); }
+
+    /* Round Indicator */
+    .round-indicator {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.3rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .round-indicator span {
+      color: var(--accent-light);
+      font-weight: 700;
+    }
+
+    /* Metronome Indicator */
+    .metronome-indicator {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding: 12px 24px;
+      background: var(--bg-secondary);
+      border-radius: 30px;
+    }
+
+    .metronome-indicator.visible { display: flex; }
+
+    .metronome-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      transition: all 0.05s ease;
+    }
+
+    .metronome-dot.active {
+      background: var(--cyan);
+      box-shadow: 0 0 25px var(--cyan);
+    }
+
+    .metronome-bpm {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.95rem;
+      color: var(--cyan);
+    }
+
+    /* Timer Stats */
+    .timer-stats {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 35px;
+    }
+
+    .timer-stat { text-align: center; }
+
+    .timer-stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .timer-stat-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+    }
+
+    /* Timer Controls */
+    .timer-controls {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .timer-ctrl-btn {
+      width: 68px;
+      height: 68px;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.6rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .timer-ctrl-btn.stop {
+      background: var(--danger);
+      color: white;
+    }
+
+    .timer-ctrl-btn.pause {
+      background: var(--accent);
+      color: white;
+    }
+
+    .timer-ctrl-btn.skip {
+      background: var(--bg-secondary);
+      color: white;
+      border: 2px solid var(--border);
+    }
+
+    .timer-ctrl-btn:hover { transform: scale(1.08); }
+    .timer-ctrl-btn:active { transform: scale(0.95); }
+
+    .back-link {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: color 0.2s ease;
+      margin-top: auto;
+      padding: 10px;
+    }
+
+    .back-link:hover { color: var(--text-secondary); }
+
+    /* Complete Actions */
+    .complete-actions {
+      display: flex;
+      gap: 18px;
+      margin-top: 35px;
+    }
+
+    .complete-btn {
+      padding: 16px 28px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .complete-btn.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .complete-btn.secondary {
+      background: var(--bg-secondary);
+      color: white;
+      border: 1px solid var(--border);
+    }
+
+    .complete-btn:active { transform: scale(0.96); }
+
+    /* Stopwatch & Countdown */
+    .stopwatch-display,
+    .countdown-display {
+      font-family: 'Orbitron', monospace;
+      font-size: 4rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 45px 0;
+      color: var(--text-primary);
+    }
+
+    .stopwatch-controls,
+    .countdown-controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 35px;
+    }
+
+    .sw-btn {
+      padding: 16px 28px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .sw-btn.primary { background: var(--accent); color: white; }
+    .sw-btn.secondary { background: var(--bg-secondary); color: white; border: 1px solid var(--border); }
+    .sw-btn.success { background: var(--success); color: white; }
+    .sw-btn.warning { background: var(--warning); color: var(--bg-primary); }
+    .sw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sw-btn:active:not(:disabled) { transform: scale(0.96); }
+
+    /* Laps */
+    .laps-container { max-height: 320px; overflow-y: auto; }
+
+    .lap-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--bg-primary);
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+
+    .lap-number { color: var(--text-muted); font-weight: 500; }
+    .lap-time { font-family: 'Orbitron', monospace; color: var(--text-primary); }
+
+    /* Countdown Config */
+    .countdown-config {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 30px;
+    }
+
+    .countdown-field { text-align: center; }
+
+    .countdown-field label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* History */
+    .history-item {
+      padding: 18px;
+      background: var(--bg-primary);
+      border-radius: 14px;
+      margin-bottom: 14px;
+      border-left: 4px solid var(--accent);
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .history-type { font-weight: 600; color: var(--accent-light); }
+    .history-date { font-size: 0.85rem; color: var(--text-muted); }
+
+    .history-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .history-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 50px 20px;
+    }
+
+    /* Wake Lock Indicator */
+    .wakelock-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .wakelock-indicator.active { color: var(--success); }
+
+    /* Hide config when timer active */
+    .hiit-config.hidden { display: none; }
+
+    /* Responsive */
+    @media (max-width: 380px) {
+      .timer-display { font-size: 4rem; }
+      .nav-tab { font-size: 0.65rem; padding: 12px 6px; }
+      .config-btn { width: 44px; height: 44px; }
+      .config-input { width: 58px; height: 44px; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <h1>⚡ HIIT Timer</h1>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="hiit">
+        <span class="icon">🏠</span>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" data-tab="history">
+        <span class="icon">📊</span>
+        <span>History</span>
+      </button>
+      <button class="nav-tab" data-tab="stopwatch">
+        <span class="icon">⏱️</span>
+        <span>Install</span>
+      </button>
+      <button class="nav-tab" data-tab="donate">
+        <span class="icon">❤️</span>
+        <span>Donate</span>
+      </button>
+      <button class="nav-tab" data-tab="privacy">
+        <span class="icon">🔒</span>
+        <span>Privacy</span>
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- HIIT Tab -->
+      <div class="tab-content active" id="hiit-tab">
+        <!-- HIIT Config -->
+        <div class="hiit-config" id="hiit-config">
+          <!-- Configure Workout -->
+          <div class="card">
+            <div class="card-title">⚙️ Configure Your Workout</div>
+
+            <div class="config-row">
+              <div class="config-label">
+                <span class="emoji">🔥</span>
+                <span>Work Interval (s)</span>
+              </div>
+              <div class="config-controls">
+                <button class="config-btn" data-action="decrease" data-target="workInterval">−</button>
+                <input type="number" class="config-input" id="workInterval" value="5" min="1" max="600">
+                <button class="config-btn" data-action="increase" data-target="workInterval">+</button>
+              </div>
+            </div>
+
+            <div class="config-row">
+              <div class="config-label">
+                <span class="emoji">😌</span>
+                <span>Rest Interval (s)</span>
+              </div>
+              <div class="config-controls">
+                <button class="config-btn" data-action="decrease" data-target="restInterval">−</button>
+                <input type="number" class="config-input" id="restInterval" value="5" min="0" max="600">
+                <button class="config-btn" data-action="increase" data-target="restInterval">+</button>
+              </div>
+            </div>
+
+            <div class="config-row">
+              <div class="config-label">
+                <span class="emoji">🌡️</span>
+                <span>Warm Up (s)</span>
+              </div>
+              <div class="config-controls">
+                <button class="config-btn" data-action="decrease" data-target="warmUp">−</button>
+                <input type="number" class="config-input" id="warmUp" value="0" min="0" max="300">
+                <button class="config-btn" data-action="increase" data-target="warmUp">+</button>
+              </div>
+            </div>
+
+            <div class="config-row highlighted">
+              <div class="config-label">
+                <span class="emoji">❄️</span>
+                <span>Cool Down (s)</span>
+              </div>
+              <div class="config-controls">
+                <button class="config-btn" data-action="decrease" data-target="coolDown">−</button>
+                <input type="number" class="config-input" id="coolDown" value="0" min="0" max="300">
+                <button class="config-btn" data-action="increase" data-target="coolDown">+</button>
+              </div>
+            </div>
+
+            <div class="config-row">
+              <div class="config-label">
+                <span class="emoji">🔄</span>
+                <span>Rounds</span>
+              </div>
+              <div class="config-controls">
+                <button class="config-btn" data-action="decrease" data-target="rounds" data-step="1">−</button>
+                <input type="number" class="config-input" id="rounds" value="4" min="1" max="100">
+                <button class="config-btn" data-action="increase" data-target="rounds" data-step="1">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Settings -->
+          <div class="card">
+            <div class="card-title">🎙️ Audio Settings</div>
+
+            <div class="toggle-row">
+              <span class="toggle-label">Voice Announcements</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="voiceAnnouncements" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <span class="toggle-label">Sound Effects</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="soundEffects" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <span class="toggle-label">Countdown Last 3 Seconds</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="countdownBeeps" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="volume-row">
+              <span class="volume-label">🔔 Alerts</span>
+              <input type="range" class="volume-slider" id="alertsVolume" min="0" max="100" value="80">
+              <span class="volume-value" id="alertsVolumeValue">80%</span>
+            </div>
+
+            <div class="volume-row">
+              <span class="volume-label">🎵 Metronome</span>
+              <input type="range" class="volume-slider" id="metronomeVolume" min="0" max="100" value="60">
+              <span class="volume-value" id="metronomeVolumeValue">60%</span>
+            </div>
+          </div>
+
+          <!-- Metronome -->
+          <div class="card">
+            <div class="card-title">🎵 Metronome / BPM</div>
+
+            <div class="toggle-row">
+              <span class="toggle-label">Enable Metronome</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="metronomeEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div id="metronomeSettings" style="display: none;">
+              <div class="config-row">
+                <div class="config-label"><span>BPM</span></div>
+                <div class="config-controls">
+                  <button class="config-btn" data-action="decrease" data-target="bpm" data-step="5">−</button>
+                  <input type="number" class="config-input" id="bpm" value="120" min="20" max="240">
+                  <button class="config-btn" data-action="increase" data-target="bpm" data-step="5">+</button>
+                </div>
+              </div>
+
+              <div class="bpm-presets">
+                <button class="bpm-preset" data-bpm="30">30</button>
+                <button class="bpm-preset" data-bpm="60">60</button>
+                <button class="bpm-preset" data-bpm="120">120</button>
+                <button class="bpm-preset" data-bpm="160">160</button>
+                <button class="bpm-preset" data-bpm="170">170</button>
+                <button class="bpm-preset" data-bpm="180">180</button>
+              </div>
+
+              <div class="checkbox-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="metroWork" checked>
+                  <span>🔥 Work</span>
+                </label>
+                <label class="checkbox-item">
+                  <input type="checkbox" id="metroRest">
+                  <span>😌 Rest</span>
+                </label>
+                <label class="checkbox-item">
+                  <input type="checkbox" id="metroAlways">
+                  <span>🔁 Always</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wake Lock Indicator -->
+          <div class="wakelock-indicator" id="wakelockIndicator">
+            🔒 Screen stays awake when running
+          </div>
+
+          <!-- Start Button -->
+          <button class="start-btn" id="startWorkout">
+            <span class="play-icon">▶️</span>
+            <span>Start Workout</span>
+          </button>
+        </div>
+
+        <!-- Timer Active Screen -->
+        <div class="timer-active" id="timer-active">
+          <div class="timer-phase" id="timerPhase">WORK!</div>
+          <div class="timer-display" id="timerDisplay">00:00</div>
+          
+          <div class="progress-container">
+            <div class="progress-bar" id="progressBar" style="width: 100%"></div>
+          </div>
+
+          <div class="round-indicator" id="roundIndicator">
+            Round <span id="currentRound">1</span> / <span id="totalRounds">4</span>
+          </div>
+
+          <div class="metronome-indicator" id="metronomeIndicator">
+            <div class="metronome-dot" id="metronomeDot"></div>
+            <span class="metronome-bpm" id="metronomeBpmDisplay">120 BPM</span>
+          </div>
+
+          <div class="timer-stats">
+            <div class="timer-stat">
+              <div class="timer-stat-label">⏱️ Total</div>
+              <div class="timer-stat-value" id="totalElapsed">00:00</div>
+            </div>
+            <div class="timer-stat">
+              <div class="timer-stat-label">🔥 Work</div>
+              <div class="timer-stat-value" id="totalWork">00:00</div>
+            </div>
+          </div>
+
+          <div class="timer-controls" id="runningControls">
+            <button class="timer-ctrl-btn stop" id="stopBtn" title="Stop">⏹️</button>
+            <button class="timer-ctrl-btn pause" id="pauseBtn" title="Pause">⏸️</button>
+            <button class="timer-ctrl-btn skip" id="skipBtn" title="Skip">⏭️</button>
+          </div>
+
+          <div class="complete-actions" id="completeActions" style="display: none;">
+            <button class="complete-btn secondary" id="backToConfigBtn">← Back to Config</button>
+            <button class="complete-btn primary" id="restartBtn">🔄 Restart</button>
+          </div>
+
+          <div class="back-link" id="backLink">← Back to Config</div>
+        </div>
+      </div>
+
+      <!-- History Tab -->
+      <div class="tab-content" id="history-tab">
+        <div class="card">
+          <div class="card-title">📊 Workout History</div>
+          <div id="historyList">
+            <div class="history-empty">No workouts recorded yet. Start training!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stopwatch Tab (Install) -->
+      <div class="tab-content" id="stopwatch-tab">
+        <div class="card">
+          <div class="card-title">📲 Install App</div>
+          <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+            Install this app on your device for the best experience. Works offline!
+          </p>
+          <button class="start-btn" id="installBtn" style="margin-top: 0;">
+            <span>📲</span>
+            <span>Install App</span>
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⏱️ Stopwatch</div>
+          <div class="stopwatch-display" id="stopwatchDisplay">00:00.00</div>
+          
+          <div class="stopwatch-controls">
+            <button class="sw-btn secondary" id="swLapBtn" disabled>📍 Lap</button>
+            <button class="sw-btn primary" id="swStartBtn">▶️ Start</button>
+            <button class="sw-btn secondary" id="swResetBtn">🔄 Reset</button>
+          </div>
+        </div>
+
+        <div class="card" id="lapsCard" style="display: none;">
+          <div class="card-title">📍 Laps</div>
+          <div class="laps-container" id="lapsList"></div>
+        </div>
+      </div>
+
+      <!-- Donate Tab -->
+      <div class="tab-content" id="donate-tab">
+        <div class="card">
+          <div class="card-title">❤️ Support Development</div>
+          <p style="color: var(--text-secondary); line-height: 1.6;">
+            If you enjoy this app, consider supporting its development!
+          </p>
+        </div>
+      </div>
+
+      <!-- Privacy Tab -->
+      <div class="tab-content" id="privacy-tab">
+        <div class="card">
+          <div class="card-title">🔒 Privacy Policy</div>
+          <p style="color: var(--text-secondary); line-height: 1.6;">
+            This app works 100% offline and stores all data locally on your device. No data is sent to any server.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ==================== Audio System ====================
+    class AudioManager {
+      constructor() {
+        this.context = null;
+        this.alertsVolume = 0.8;
+        this.metronomeVolume = 0.6;
+      }
+
+      init() {
+        if (!this.context) {
+          this.context = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.context.state === 'suspended') {
+          this.context.resume();
+        }
+      }
+
+      playTone(frequency, duration, type = 'sine', volume = this.alertsVolume) {
+        if (!this.context) this.init();
+        
+        const oscillator = this.context.createOscillator();
+        const gainNode = this.context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.context.destination);
+        
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        gainNode.gain.setValueAtTime(volume, this.context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + duration / 1000);
+        
+        oscillator.start();
+        oscillator.stop(this.context.currentTime + duration / 1000);
+      }
+
+      playCountdown() {
+        this.playTone(600, 100, 'sine', this.alertsVolume);
+      }
+
+      playWorkStart() {
+        this.playTone(880, 150, 'square', this.alertsVolume);
+        setTimeout(() => this.playTone(1100, 200, 'square', this.alertsVolume), 200);
+      }
+
+      playRestStart() {
+        this.playTone(440, 400, 'sine', this.alertsVolume);
+      }
+
+      playRoundComplete() {
+        this.playTone(660, 100, 'triangle', this.alertsVolume);
+        setTimeout(() => this.playTone(880, 100, 'triangle', this.alertsVolume), 120);
+        setTimeout(() => this.playTone(1100, 100, 'triangle', this.alertsVolume), 240);
+      }
+
+      playWorkoutFinish() {
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+          setTimeout(() => this.playTone(freq, i === 3 ? 300 : 150, 'square', this.alertsVolume), i * 180);
+        });
+      }
+
+      playMetronomeClick() {
+        if (!this.context) this.init();
+        
+        const oscillator = this.context.createOscillator();
+        const gainNode = this.context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.context.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(1800, this.context.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(900, this.context.currentTime + 0.05);
+        
+        gainNode.gain.setValueAtTime(this.metronomeVolume, this.context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.05);
+        
+        oscillator.start();
+        oscillator.stop(this.context.currentTime + 0.05);
+      }
+    }
+
+    // ==================== Speech System ====================
+    class SpeechManager {
+      speak(text) {
+        if (!('speechSynthesis' in window)) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        speechSynthesis.speak(utterance);
+      }
+    }
+
+    // ==================== Wake Lock ====================
+    class WakeLockManager {
+      constructor() {
+        this.wakeLock = null;
+        this.indicator = document.getElementById('wakelockIndicator');
+      }
+
+      async acquire() {
+        if (!('wakeLock' in navigator)) return;
+        try {
+          this.wakeLock = await navigator.wakeLock.request('screen');
+          this.indicator.textContent = '🔓 Screen staying awake';
+          this.indicator.classList.add('active');
+        } catch (err) {
+          console.log('Wake Lock error:', err);
+        }
+      }
+
+      async release() {
+        if (this.wakeLock) {
+          await this.wakeLock.release();
+          this.wakeLock = null;
+          this.indicator.textContent = '🔒 Screen stays awake when running';
+          this.indicator.classList.remove('active');
+        }
+      }
+    }
+
+    // ==================== History Manager ====================
+    class HistoryManager {
+      constructor() {
+        this.key = 'workoutHistory';
+        this.maxItems = 50;
+      }
+
+      save(workout) {
+        let history = this.getAll();
+        history.unshift(workout);
+        if (history.length > this.maxItems) {
+          history = history.slice(0, this.maxItems);
+        }
+        localStorage.setItem(this.key, JSON.stringify(history));
+      }
+
+      getAll() {
+        try {
+          return JSON.parse(localStorage.getItem(this.key)) || [];
+        } catch {
+          return [];
+        }
+      }
+
+      render() {
+        const history = this.getAll();
+        const container = document.getElementById('historyList');
+        
+        if (history.length === 0) {
+          container.innerHTML = '<div class="history-empty">No workouts recorded yet. Start training!</div>';
+          return;
+        }
+
+        container.innerHTML = history.map(h => {
+          const date = new Date(h.date);
+          const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const duration = this.formatTime(h.duration);
+          const workTime = h.workTime ? this.formatTime(h.workTime) : '-';
+          
+          return `
+            <div class="history-item">
+              <div class="history-header">
+                <span class="history-type">${h.type}</span>
+                <span class="history-date">${dateStr}</span>
+              </div>
+              <div class="history-stats">
+                <span>⏱️ ${duration}</span>
+                ${h.workTime ? `<span>🔥 ${workTime}</span>` : ''}
+                ${h.rounds ? `<span>🔄 ${h.rounds} rounds</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      }
+    }
+
+    // ==================== Initialize ====================
+    const audio = new AudioManager();
+    const speech = new SpeechManager();
+    const wakeLock = new WakeLockManager();
+    const history = new HistoryManager();
+
+    // State
+    let hiitState = {
+      running: false,
+      paused: false,
+      phase: 'idle',
+      currentRound: 1,
+      remainingSeconds: 0,
+      totalWorkTime: 0,
+      totalElapsed: 0,
+      intervalId: null,
+      metronomeIntervalId: null,
+      phaseDuration: 0
+    };
+
+    let stopwatchState = {
+      running: false,
+      startTime: 0,
+      elapsed: 0,
+      laps: [],
+      intervalId: null
+    };
+
+    // DOM Elements
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    // ==================== Navigation ====================
+    $$('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = tab.dataset.tab;
+        
+        $$('.nav-tab').forEach(t => t.classList.remove('active'));
+        $$('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        tab.classList.add('active');
+        $(`#${tabId}-tab`).classList.add('active');
+        
+        if (tabId === 'history') history.render();
+      });
+    });
+
+    // ==================== Config Buttons ====================
+    $$('.config-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        audio.init();
+        const action = btn.dataset.action;
+        const target = btn.dataset.target;
+        const step = parseInt(btn.dataset.step) || 5;
+        const input = $(`#${target}`);
+        
+        let value = parseInt(input.value) || 0;
+        const min = parseInt(input.min) || 0;
+        const max = parseInt(input.max) || 999;
+        
+        if (action === 'increase') {
+          value = Math.min(value + step, max);
+        } else {
+          value = Math.max(value - step, min);
+        }
+        
+        input.value = value;
+      });
+    });
+
+    // ==================== Volume Sliders ====================
+    $('#alertsVolume').addEventListener('input', (e) => {
+      audio.alertsVolume = e.target.value / 100;
+      $('#alertsVolumeValue').textContent = `${e.target.value}%`;
+    });
+
+    $('#metronomeVolume').addEventListener('input', (e) => {
+      audio.metronomeVolume = e.target.value / 100;
+      $('#metronomeVolumeValue').textContent = `${e.target.value}%`;
+    });
+
+    // ==================== Metronome Toggle ====================
+    $('#metronomeEnabled').addEventListener('change', () => {
+      $('#metronomeSettings').style.display = $('#metronomeEnabled').checked ? 'block' : 'none';
+    });
+
+    $$('.bpm-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('#bpm').value = btn.dataset.bpm;
+      });
+    });
+
+    $('#metroAlways').addEventListener('change', () => {
+      if ($('#metroAlways').checked) {
+        $('#metroWork').checked = false;
+        $('#metroRest').checked = false;
+      }
+    });
+
+    ['#metroWork', '#metroRest'].forEach(sel => {
+      $(sel).addEventListener('change', () => {
+        if ($(sel).checked) $('#metroAlways').checked = false;
+      });
+    });
+
+    // ==================== HIIT Timer ====================
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function startHIIT() {
+      audio.init();
+      
+      hiitState = {
+        running: true,
+        paused: false,
+        phase: 'idle',
+        currentRound: 1,
+        remainingSeconds: 0,
+        totalWorkTime: 0,
+        totalElapsed: 0,
+        intervalId: null,
+        metronomeIntervalId: null,
+        phaseDuration: 0
+      };
+
+      const warmUp = parseInt($('#warmUp').value) || 0;
+      const totalRounds = parseInt($('#rounds').value) || 1;
+      
+      $('#totalRounds').textContent = totalRounds;
+      $('#currentRound').textContent = '1';
+      
+      $('#hiit-config').classList.add('hidden');
+      $('#timer-active').classList.add('visible');
+      $('#runningControls').style.display = 'flex';
+      $('#completeActions').style.display = 'none';
+      $('#backLink').style.display = 'block';
+
+      wakeLock.acquire();
+
+      if (warmUp > 0) {
+        startPhase('warmup', warmUp);
+      } else {
+        startPhase('work', parseInt($('#workInterval').value));
+      }
+    }
+
+    function startPhase(phase, duration) {
+      hiitState.phase = phase;
+      hiitState.remainingSeconds = duration;
+      hiitState.phaseDuration = duration;
+
+      updateTimerDisplay();
+      updatePhaseUI();
+
+      if ($('#soundEffects').checked) {
+        if (phase === 'work') audio.playWorkStart();
+        else if (phase === 'rest') audio.playRestStart();
+      }
+
+      if ($('#voiceAnnouncements').checked) {
+        if (phase === 'warmup') speech.speak('Warm up');
+        else if (phase === 'work') speech.speak('Work!');
+        else if (phase === 'rest') speech.speak('Rest');
+        else if (phase === 'cooldown') speech.speak('Cool down');
+      }
+
+      startMetronome();
+
+      if (hiitState.intervalId) clearInterval(hiitState.intervalId);
+      
+      hiitState.intervalId = setInterval(() => {
+        if (hiitState.paused) return;
+
+        hiitState.remainingSeconds--;
+        hiitState.totalElapsed++;
+        
+        if (hiitState.phase === 'work') {
+          hiitState.totalWorkTime++;
+        }
+
+        if ($('#countdownBeeps').checked && $('#soundEffects').checked) {
+          if (hiitState.remainingSeconds <= 3 && hiitState.remainingSeconds > 0) {
+            audio.playCountdown();
+            if ($('#voiceAnnouncements').checked) {
+              speech.speak(hiitState.remainingSeconds.toString());
+            }
+          }
+        }
+
+        updateTimerDisplay();
+
+        if (hiitState.remainingSeconds <= 0) {
+          nextPhase();
+        }
+      }, 1000);
+    }
+
+    function nextPhase() {
+      clearInterval(hiitState.intervalId);
+      stopMetronome();
+
+      const workInterval = parseInt($('#workInterval').value);
+      const restInterval = parseInt($('#restInterval').value);
+      const coolDown = parseInt($('#coolDown').value);
+      const totalRounds = parseInt($('#rounds').value);
+
+      if (hiitState.phase === 'warmup') {
+        startPhase('work', workInterval);
+      } else if (hiitState.phase === 'work') {
+        if ($('#soundEffects').checked) audio.playRoundComplete();
+        
+        if (hiitState.currentRound < totalRounds) {
+          if (restInterval > 0) {
+            startPhase('rest', restInterval);
+          } else {
+            hiitState.currentRound++;
+            $('#currentRound').textContent = hiitState.currentRound;
+            if ($('#voiceAnnouncements').checked) {
+              speech.speak(`Round ${hiitState.currentRound}`);
+            }
+            startPhase('work', workInterval);
+          }
+        } else {
+          if (coolDown > 0) {
+            startPhase('cooldown', coolDown);
+          } else {
+            finishWorkout();
+          }
+        }
+      } else if (hiitState.phase === 'rest') {
+        hiitState.currentRound++;
+        $('#currentRound').textContent = hiitState.currentRound;
+        if ($('#voiceAnnouncements').checked) {
+          speech.speak(`Round ${hiitState.currentRound}`);
+        }
+        startPhase('work', workInterval);
+      } else if (hiitState.phase === 'cooldown') {
+        finishWorkout();
+      }
+    }
+
+    function finishWorkout() {
+      hiitState.running = false;
+      hiitState.phase = 'finished';
+
+      if ($('#soundEffects').checked) audio.playWorkoutFinish();
+      if ($('#voiceAnnouncements').checked) speech.speak('Workout complete! Great job!');
+
+      updatePhaseUI();
+      stopMetronome();
+      wakeLock.release();
+
+      $('#runningControls').style.display = 'none';
+      $('#completeActions').style.display = 'flex';
+      $('#backLink').style.display = 'none';
+
+      history.save({
+        type: 'HIIT',
+        date: new Date().toISOString(),
+        duration: hiitState.totalElapsed,
+        workTime: hiitState.totalWorkTime,
+        rounds: parseInt($('#rounds').value),
+        config: {
+          workInterval: parseInt($('#workInterval').value),
+          restInterval: parseInt($('#restInterval').value),
+          warmUp: parseInt($('#warmUp').value),
+          coolDown: parseInt($('#coolDown').value),
+          rounds: parseInt($('#rounds').value)
+        }
+      });
+    }
+
+    function updateTimerDisplay() {
+      $('#timerDisplay').textContent = formatTime(hiitState.remainingSeconds);
+      $('#totalElapsed').textContent = formatTime(hiitState.totalElapsed);
+      $('#totalWork').textContent = formatTime(hiitState.totalWorkTime);
+
+      const progress = hiitState.phaseDuration > 0 
+        ? (hiitState.remainingSeconds / hiitState.phaseDuration) * 100 
+        : 0;
+      $('#progressBar').style.width = `${progress}%`;
+    }
+
+    function updatePhaseUI() {
+      const phase = hiitState.phase;
+      
+      const phaseTexts = {
+        warmup: 'WARM UP',
+        work: 'WORK!',
+        rest: 'REST',
+        cooldown: 'COOL DOWN',
+        finished: 'COMPLETE! 🎉'
+      };
+      $('#timerPhase').textContent = phaseTexts[phase] || '';
+
+      $('#timerPhase').className = 'timer-phase ' + phase;
+      $('#timerDisplay').className = 'timer-display ' + phase + (hiitState.running && !hiitState.paused ? ' running' : '');
+      $('#progressBar').className = 'progress-bar ' + phase;
+    }
+
+    function startMetronome() {
+      if (!$('#metronomeEnabled').checked) return;
+
+      const shouldPlay = $('#metroAlways').checked ||
+        ($('#metroWork').checked && hiitState.phase === 'work') ||
+        ($('#metroRest').checked && hiitState.phase === 'rest');
+
+      if (!shouldPlay) return;
+
+      $('#metronomeIndicator').classList.add('visible');
+      $('#metronomeBpmDisplay').textContent = `${$('#bpm').value} BPM`;
+
+      const interval = 60000 / parseInt($('#bpm').value);
+      
+      audio.playMetronomeClick();
+      $('#metronomeDot').classList.add('active');
+      setTimeout(() => $('#metronomeDot').classList.remove('active'), 50);
+
+      hiitState.metronomeIntervalId = setInterval(() => {
+        if (hiitState.paused) return;
+        audio.playMetronomeClick();
+        $('#metronomeDot').classList.add('active');
+        setTimeout(() => $('#metronomeDot').classList.remove('active'), 50);
+      }, interval);
+    }
+
+    function stopMetronome() {
+      if (hiitState.metronomeIntervalId) {
+        clearInterval(hiitState.metronomeIntervalId);
+        hiitState.metronomeIntervalId = null;
+      }
+      $('#metronomeIndicator').classList.remove('visible');
+    }
+
+    function stopHIIT(partial = true) {
+      clearInterval(hiitState.intervalId);
+      stopMetronome();
+      wakeLock.release();
+
+      if (partial && hiitState.totalElapsed > 0) {
+        history.save({
+          type: 'HIIT (Partial)',
+          date: new Date().toISOString(),
+          duration: hiitState.totalElapsed,
+          workTime: hiitState.totalWorkTime,
+          rounds: hiitState.currentRound,
+          config: {
+            workInterval: parseInt($('#workInterval').value),
+            restInterval: parseInt($('#restInterval').value),
+            warmUp: parseInt($('#warmUp').value),
+            coolDown: parseInt($('#coolDown').value),
+            rounds: parseInt($('#rounds').value)
+          }
+        });
+      }
+
+      hiitState = {
+        running: false,
+        paused: false,
+        phase: 'idle',
+        currentRound: 1,
+        remainingSeconds: 0,
+        totalWorkTime: 0,
+        totalElapsed: 0,
+        intervalId: null,
+        metronomeIntervalId: null,
+        phaseDuration: 0
+      };
+
+      $('#hiit-config').classList.remove('hidden');
+      $('#timer-active').classList.remove('visible');
+    }
+
+    function togglePause() {
+      hiitState.paused = !hiitState.paused;
+      $('#pauseBtn').textContent = hiitState.paused ? '▶️' : '⏸️';
+      $('#pauseBtn').title = hiitState.paused ? 'Resume' : 'Pause';
+      $('#timerDisplay').classList.toggle('running', !hiitState.paused);
+    }
+
+    // Event Listeners
+    $('#startWorkout').addEventListener('click', startHIIT);
+    
+    $('#stopBtn').addEventListener('click', () => {
+      if (confirm('Stop workout and return to configuration?')) {
+        stopHIIT(true);
+      }
+    });
+    
+    $('#pauseBtn').addEventListener('click', togglePause);
+    $('#skipBtn').addEventListener('click', () => {
+      hiitState.remainingSeconds = 0;
+      nextPhase();
+    });
+    
+    $('#backLink').addEventListener('click', () => {
+      if (confirm('Stop workout and return to configuration?')) {
+        stopHIIT(true);
+      }
+    });
+    
+    $('#backToConfigBtn').addEventListener('click', () => stopHIIT(false));
+    $('#restartBtn').addEventListener('click', () => {
+      stopHIIT(false);
+      startHIIT();
+    });
+
+    // ==================== Stopwatch ====================
+    function updateStopwatchDisplay() {
+      const elapsed = stopwatchState.running 
+        ? stopwatchState.elapsed + (Date.now() - stopwatchState.startTime)
+        : stopwatchState.elapsed;
+      
+      const minutes = Math.floor(elapsed / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      const centiseconds = Math.floor((elapsed % 1000) / 10);
+      
+      $('#stopwatchDisplay').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+    }
+
+    function startStopwatch() {
+      if (stopwatchState.running) {
+        stopwatchState.elapsed += Date.now() - stopwatchState.startTime;
+        stopwatchState.running = false;
+        clearInterval(stopwatchState.intervalId);
+        $('#swStartBtn').textContent = '▶️ Resume';
+        $('#swStartBtn').classList.remove('warning');
+        $('#swStartBtn').classList.add('primary');
+        $('#swLapBtn').disabled = true;
+      } else {
+        audio.init();
+        stopwatchState.startTime = Date.now();
+        stopwatchState.running = true;
+        stopwatchState.intervalId = setInterval(updateStopwatchDisplay, 10);
+        $('#swStartBtn').textContent = '⏸️ Pause';
+        $('#swStartBtn').classList.remove('primary');
+        $('#swStartBtn').classList.add('warning');
+        $('#swLapBtn').disabled = false;
+      }
+    }
+
+    function resetStopwatch() {
+      clearInterval(stopwatchState.intervalId);
+      stopwatchState = { running: false, startTime: 0, elapsed: 0, laps: [], intervalId: null };
+      $('#stopwatchDisplay').textContent = '00:00.00';
+      $('#swStartBtn').textContent = '▶️ Start';
+      $('#swStartBtn').classList.remove('warning');
+      $('#swStartBtn').classList.add('primary');
+      $('#swLapBtn').disabled = true;
+      $('#lapsList').innerHTML = '';
+      $('#lapsCard').style.display = 'none';
+    }
+
+    function addLap() {
+      const elapsed = stopwatchState.elapsed + (Date.now() - stopwatchState.startTime);
+      stopwatchState.laps.unshift(elapsed);
+      
+      $('#lapsCard').style.display = 'block';
+      
+      $('#lapsList').innerHTML = stopwatchState.laps.map((lap, i) => {
+        const m = Math.floor(lap / 60000);
+        const s = Math.floor((lap % 60000) / 1000);
+        const cs = Math.floor((lap % 1000) / 10);
+        return `
+          <div class="lap-item">
+            <span class="lap-number">Lap ${stopwatchState.laps.length - i}</span>
+            <span class="lap-time">${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    $('#swStartBtn').addEventListener('click', startStopwatch);
+    $('#swResetBtn').addEventListener('click', resetStopwatch);
+    $('#swLapBtn').addEventListener('click', addLap);
+
+    // ==================== PWA Install ====================
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+
+    $('#installBtn').addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+      } else {
+        alert('App is already installed or installation is not supported in this browser.');
+      }
+    });
+
+    // ==================== Visibility Change ====================
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (hiitState.running && !hiitState.paused) {
+          wakeLock.acquire();
+        }
+      }
+    });
+
+    // ==================== Service Worker ====================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.log('SW failed:', err));
+      });
+    }
+
+    // Initialize
+    history.render();
+  </script>
+</body>
+</html>

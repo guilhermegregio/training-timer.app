@@ -1,0 +1,6 @@
+export { audioManager } from './audio'
+export { speechManager } from './speech'
+export { wakeLockManager } from './wakelock'
+export { historyManager } from './history'
+export { settingsManager } from './settings'
+export { libraryManager } from './library'

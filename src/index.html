@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#00d4ff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Workout Timer</title>
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <h1>WORKOUT TIMER</h1>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Timers Tab -->
+      <div id="tab-timers" class="tab active">
+        <div class="timer-grid">
+          <div class="timer-card" onclick="window.timerApp.openTimer('stopwatch')">
+            <div class="icon">&#9201;</div>
+            <h3>Stopwatch</h3>
+            <p>Count up with laps</p>
+          </div>
+          <div class="timer-card" onclick="window.timerApp.openTimer('countdown')">
+            <div class="icon">&#8987;</div>
+            <h3>Countdown</h3>
+            <p>Simple timer</p>
+          </div>
+          <div class="timer-card" onclick="window.timerApp.openTimer('intervals')">
+            <div class="icon">&#128293;</div>
+            <h3>Intervals</h3>
+            <p>Work/Rest HIIT</p>
+          </div>
+          <div class="timer-card" onclick="window.timerApp.openTimer('emom')">
+            <div class="icon">&#128336;</div>
+            <h3>EMOM</h3>
+            <p>Every Minute</p>
+          </div>
+          <div class="timer-card" onclick="window.timerApp.openTimer('amrap')">
+            <div class="icon">&#128170;</div>
+            <h3>AMRAP</h3>
+            <p>Max Rounds</p>
+          </div>
+          <div class="timer-card" onclick="window.timerApp.openTimer('fortime')">
+            <div class="icon">&#127942;</div>
+            <h3>For Time</h3>
+            <p>Race the clock</p>
+          </div>
+          <div
+            class="timer-card"
+            onclick="window.timerApp.openTimer('custom')"
+            style="grid-column: span 2"
+          >
+            <div class="icon">&#9998;</div>
+            <h3>Custom Workout</h3>
+            <p>Build with text commands</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Library Tab -->
+      <div id="tab-library" class="tab">
+        <div class="library-header">
+          <input type="text" id="library-search" placeholder="Search workouts..." />
+          <button class="btn btn-primary" onclick="window.timerApp.openSaveModal()">+</button>
+        </div>
+        <div id="workout-list" class="workout-list">
+          <div class="empty-state">
+            <div class="icon">&#128218;</div>
+            <p>No saved workouts yet</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="tab-settings" class="tab">
+        <div class="settings-section">
+          <h3>Audio</h3>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Voice Announcements</div>
+              <div class="setting-desc">Speak phase and countdown</div>
+            </div>
+            <div
+              class="toggle"
+              id="setting-voice"
+              onclick="window.timerApp.toggleSetting('voice')"
+            ></div>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Sound Effects</div>
+              <div class="setting-desc">Beeps and alerts</div>
+            </div>
+            <div
+              class="toggle active"
+              id="setting-sounds"
+              onclick="window.timerApp.toggleSetting('sounds')"
+            ></div>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Countdown Last 3 Seconds</div>
+              <div class="setting-desc">Beep on 3, 2, 1</div>
+            </div>
+            <div
+              class="toggle active"
+              id="setting-countdown3"
+              onclick="window.timerApp.toggleSetting('countdown3')"
+            ></div>
+          </div>
+          <div class="setting-row" style="flex-direction: column; align-items: stretch; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 1.1rem">&#9888;</span>
+              <span class="setting-label">Alerts Volume</span>
+            </div>
+            <div class="range-container">
+              <input
+                type="range"
+                id="setting-alertVolume"
+                min="0"
+                max="100"
+                value="80"
+                oninput="window.timerApp.updateAlertVolume(this.value)"
+              />
+              <span class="range-value" id="alertVolume-value">80%</span>
+            </div>
+          </div>
+          <div class="setting-row" style="flex-direction: column; align-items: stretch; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 1.1rem">&#9835;</span>
+              <span class="setting-label">Metronome Volume</span>
+            </div>
+            <div class="range-container">
+              <input
+                type="range"
+                id="setting-metronomeVolume"
+                min="0"
+                max="100"
+                value="60"
+                oninput="window.timerApp.updateMetronomeVolume(this.value)"
+              />
+              <span class="range-value" id="metronomeVolume-value">60%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Metronome Defaults</h3>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Enable by Default</div>
+              <div class="setting-desc">Auto-enable metronome in timers</div>
+            </div>
+            <div
+              class="toggle"
+              id="setting-metronomeDefault"
+              onclick="window.timerApp.toggleSetting('metronomeDefault')"
+            ></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Default BPM</div>
+            <div class="range-container">
+              <input
+                type="range"
+                id="setting-bpm"
+                min="5"
+                max="200"
+                value="120"
+                oninput="window.timerApp.updateBpm(this.value)"
+              />
+              <span class="range-value" id="bpm-value">120</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Display</h3>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Keep Screen Awake</div>
+              <div class="setting-desc">Prevent screen from sleeping</div>
+            </div>
+            <div
+              class="toggle active"
+              id="setting-wakelock"
+              onclick="window.timerApp.toggleSetting('wakelock')"
+            ></div>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Show Milliseconds</div>
+              <div class="setting-desc">In stopwatch display</div>
+            </div>
+            <div
+              class="toggle active"
+              id="setting-millis"
+              onclick="window.timerApp.toggleSetting('millis')"
+            ></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Data</h3>
+          <div class="setting-row">
+            <button class="btn btn-secondary" onclick="window.timerApp.exportData()">
+              Export All Data
+            </button>
+          </div>
+          <div class="setting-row">
+            <button class="btn btn-secondary" onclick="window.timerApp.importData()">
+              Import Data
+            </button>
+          </div>
+          <div class="setting-row">
+            <button class="btn btn-danger" onclick="window.timerApp.clearAllData()">
+              Clear All Data
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <div class="setting-row">
+            <div class="setting-label">Version</div>
+            <div class="setting-desc">2.0.0</div>
+          </div>
+          <div class="setting-row" id="install-row" style="display: none">
+            <button class="btn btn-primary" onclick="window.installApp()">Install App</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="nav">
+      <button class="nav-item active" onclick="window.timerApp.switchTab('timers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        Timers
+      </button>
+      <button class="nav-item" onclick="window.timerApp.switchTab('library')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+        Library
+      </button>
+      <button class="nav-item" onclick="window.timerApp.switchTab('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M12 1v6m0 6v6m11-7h-6m-6 0H1m15.36-5.36l-4.24 4.24m-4.24 0L3.64 5.64m12.72 12.72l-4.24-4.24m-4.24 0l-4.24 4.24"
+          />
+        </svg>
+        Settings
+      </button>
+    </nav>
+
+    <!-- Config Screens (will be populated dynamically) -->
+    <div id="config-screen" class="config-screen"></div>
+
+    <!-- Timer Execution Screen -->
+    <div id="timer-screen" class="timer-screen">
+      <div class="timer-phase" id="timer-phase">WORK</div>
+      <div class="timer-display">
+        <div class="timer-time" id="timer-time">00:00</div>
+        <div class="timer-info" id="timer-info">Round 1/8</div>
+        <!-- Metronome indicator -->
+        <div class="timer-metronome" id="timer-metronome">
+          <div class="metro-dot" id="metro-dot"></div>
+          <span class="metro-bpm-display" id="metro-bpm-display">120 BPM</span>
+        </div>
+        <!-- Stats row -->
+        <div class="timer-stats" id="timer-stats">
+          <div class="timer-stat">
+            <div class="timer-stat-label">&#128337; Total</div>
+            <div class="timer-stat-value" id="stat-total">00:00</div>
+          </div>
+          <div class="timer-stat">
+            <div class="timer-stat-label">&#128293; Work</div>
+            <div class="timer-stat-value" id="stat-work">00:00</div>
+          </div>
+        </div>
+        <div class="timer-next" id="timer-next">Next: Rest 10s</div>
+      </div>
+      <div class="timer-progress">
+        <div
+          class="timer-progress-bar"
+          id="timer-progress"
+          style="width: 100%; background: var(--phase-work)"
+        ></div>
+      </div>
+      <div class="timer-controls" id="timer-controls">
+        <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
+        <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">
+          Pause
+        </button>
+        <button class="btn btn-secondary" onclick="window.timerApp.skipPhase()">Skip</button>
+      </div>
+      <div style="text-align: center; padding: 10px 0">
+        <a
+          href="#"
+          onclick="window.timerApp.backToConfig(); return false;"
+          style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none"
+          >&larr; Back to Config</a
+        >
+      </div>
+    </div>
+
+    <!-- Complete Screen -->
+    <div id="complete-screen" class="complete-screen">
+      <div class="complete-icon">&#127881;</div>
+      <h2 class="complete-title">WORKOUT COMPLETE!</h2>
+      <div class="complete-stats" id="complete-stats"></div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="window.timerApp.backToConfigFromComplete()">
+          &larr; Back to Config
+        </button>
+        <button class="btn btn-primary" onclick="window.timerApp.restartWorkout()">
+          &#128260; Restart
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div class="modal" id="modal-content"></div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-input" accept=".json" style="display: none" />
+
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

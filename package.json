@@ -1,0 +1,37 @@
+{
+  "name": "training-timer-app",
+  "version": "2.0.0",
+  "description": "PWA workout timer with HIIT, EMOM, AMRAP, For Time, and custom workouts",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "biome lint ./src",
+    "format": "biome format ./src --write",
+    "check": "biome check ./src",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6",
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.8",
+    "workbox-window": "^7.3.0"
+  },
+  "keywords": [
+    "workout",
+    "timer",
+    "pwa",
+    "hiit",
+    "tabata",
+    "emom",
+    "amrap",
+    "fitness"
+  ],
+  "author": "",
+  "license": "MIT"
+}

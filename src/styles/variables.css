@@ -1,0 +1,28 @@
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a2e;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b0;
+  --text-muted: #606070;
+  --accent-cyan: #00d4ff;
+  --accent-green: #00ff88;
+  --accent-red: #ff4757;
+  --accent-orange: #ff9f43;
+  --accent-purple: #a855f7;
+  --accent-yellow: #ffd93d;
+  --phase-work: #00ff88;
+  --phase-rest: #00d4ff;
+  --phase-warmup: #ff9f43;
+  --phase-cooldown: #a855f7;
+  --phase-prepare: #ffd93d;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --font-display: 'Orbitron', monospace;
+  --font-body: 'Space Grotesk', sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
