@@ -9,7 +9,8 @@
       "WebSearch",
       "WebFetch(domain:richtr.github.io)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm run build:*)"
+      "Bash(pnpm run build:*)",
+      "Bash(pnpm run check:*)"
     ]
   },
   "enabledPlugins": {

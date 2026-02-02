@@ -171,86 +171,87 @@ function updateTimerControls(): void {
   }
 }
 
-function runTimer(): void {
-  let lastTick = Date.now()
-  let lastSecond = -1
+function shouldStartCapTimer(phase: Phase): boolean {
+  return phase.exerciseIndex === 1 && !!timerState.globalTimeCap && !timerState.globalCapStartTime
+}
 
-  // Announce first phase
+function isTimeCapExpired(): boolean {
+  if (!timerState.globalTimeCap || !timerState.globalCapStartTime) return false
+  const capElapsed = (Date.now() - timerState.globalCapStartTime - timerState.pausedTime) / 1000
+  return capElapsed >= timerState.globalTimeCap
+}
+
+function handleCountdownBeeps(phase: Phase, currentSecond: number, lastSecond: number): boolean {
+  if (currentSecond === lastSecond) return false
+  if (currentSecond > 3 || currentSecond <= 0) return false
+  if (phase.duration === Number.POSITIVE_INFINITY) return false
+
+  audioManager.playCountdown(currentSecond)
+  const settings = settingsManager.get()
+  if (settings.voice) speechManager.announceNumber(currentSecond)
+  return true
+}
+
+function timerTick(lastTickRef: { value: number }, lastSecondRef: { value: number }): void {
+  if (isPaused) {
+    lastTickRef.value = Date.now()
+    return
+  }
+
+  const now = Date.now()
+  const delta = (now - lastTickRef.value) / 1000
+  lastTickRef.value = now
+
+  timerState.currentPhaseTime += delta
+  timerState.totalElapsed += delta
+
+  const phase = timerState.phases[timerState.currentPhaseIndex]
+  if (!phase) {
+    completeWorkout()
+    return
+  }
+
+  if (shouldStartCapTimer(phase)) timerState.globalCapStartTime = Date.now()
+  if (isTimeCapExpired()) {
+    completeWorkout()
+    return
+  }
+
+  if (phase.isWait) {
+    updateTimerDisplay()
+    return
+  }
+
+  const remaining = phase.duration - timerState.currentPhaseTime
+  const currentSecond = Math.ceil(remaining)
+
+  if (handleCountdownBeeps(phase, currentSecond, lastSecondRef.value)) {
+    lastSecondRef.value = currentSecond
+  }
+
+  if (remaining <= 0 && phase.duration !== Number.POSITIVE_INFINITY) {
+    nextPhase()
+  }
+
+  updateTimerDisplay()
+}
+
+function runTimer(): void {
+  const lastTickRef = { value: Date.now() }
+  const lastSecondRef = { value: -1 }
+
   const firstPhase = timerState.phases[0]
   if (firstPhase) {
     speechManager.announcePhase(firstPhase.type)
     if (firstPhase.type === 'work') audioManager.playWorkStart()
     else if (firstPhase.type === 'rest') audioManager.playRestStart()
 
-    // Start metronome for first phase (with phase-specific BPM if set)
     const metroSettings = getPhaseMetronomeSettings(firstPhase, lastConfig?.metronome)
     startMetronomeForPhase(firstPhase, metroSettings, isPaused)
   }
 
   timerInterval = window.setInterval(() => {
-    if (isPaused) {
-      lastTick = Date.now()
-      return
-    }
-
-    const now = Date.now()
-    const delta = (now - lastTick) / 1000
-    lastTick = now
-
-    timerState.currentPhaseTime += delta
-    timerState.totalElapsed += delta
-
-    const phase = timerState.phases[timerState.currentPhaseIndex]
-    if (!phase) {
-      completeWorkout()
-      return
-    }
-
-    // Start cap timer when entering first exercise phase
-    if (phase.exerciseIndex === 1 && timerState.globalTimeCap && !timerState.globalCapStartTime) {
-      timerState.globalCapStartTime = Date.now()
-    }
-
-    // Check if time cap expired
-    if (timerState.globalTimeCap && timerState.globalCapStartTime) {
-      const capElapsed = (Date.now() - timerState.globalCapStartTime - timerState.pausedTime) / 1000
-      if (capElapsed >= timerState.globalTimeCap) {
-        completeWorkout()
-        return
-      }
-    }
-
-    // Wait phases don't auto-complete - they need user interaction
-    // Don't call updateTimerControls() here - it replaces innerHTML and breaks button click events
-    if (phase.isWait) {
-      updateTimerDisplay()
-      return
-    }
-
-    const remaining = phase.duration - timerState.currentPhaseTime
-    const currentSecond = Math.ceil(remaining)
-
-    // Countdown beeps
-    if (
-      currentSecond !== lastSecond &&
-      currentSecond <= 3 &&
-      currentSecond > 0 &&
-      phase.duration !== Number.POSITIVE_INFINITY
-    ) {
-      audioManager.playCountdown(currentSecond)
-      const settings = settingsManager.get()
-      if (settings.voice && currentSecond <= 3) {
-        speechManager.announceNumber(currentSecond)
-      }
-      lastSecond = currentSecond
-    }
-
-    // Phase complete
-    if (remaining <= 0 && phase.duration !== Number.POSITIVE_INFINITY) {
-      nextPhase()
-    }
-
-    updateTimerDisplay()
+    timerTick(lastTickRef, lastSecondRef)
   }, 50)
 }
 
@@ -286,165 +287,167 @@ function nextPhase(): void {
   updateTimerDisplay()
 }
 
-function updateTimerDisplay(): void {
-  const phase = timerState.phases[timerState.currentPhaseIndex]
-  if (!phase) return
-
-  const phaseEl = $id('timer-phase')
-  const timeEl = $id('timer-time')
-  const infoEl = $id('timer-info')
-  const nextEl = $id('timer-next')
-  const progressEl = $id('timer-progress')
-  const blockLabelEl = $id('timer-block-label')
-  const exerciseEl = $id('timer-exercise')
-
-  const phaseColor = PHASE_COLORS[phase.type] || 'var(--text-primary)'
-
-  // Block label display
-  if (blockLabelEl) {
-    if (phase.customLabel || phase.label) {
-      blockLabelEl.textContent = phase.customLabel ?? phase.label?.toUpperCase() ?? ''
-      addClass(blockLabelEl, 'active')
-    } else {
-      removeClass(blockLabelEl, 'active')
-    }
-  }
-
-  // Exercise display
-  if (exerciseEl) {
-    const exerciseText = formatExerciseDisplay(phase)
-    if (exerciseText) {
-      exerciseEl.textContent = exerciseText
-      addClass(exerciseEl, 'active')
-    } else {
-      removeClass(exerciseEl, 'active')
-    }
-  }
-
-  // Phase label and color
-  // Wait phases should look like work phases (green color) - only difference is no time limit
-  const displayColor = phase.isWait ? PHASE_COLORS['work'] : phaseColor
-  let phaseLabel: string
-  if (phase.isWait) {
-    // Show as "WORK!" to look like a normal work phase
-    phaseLabel = 'WORK!'
+function updateBlockLabel(phase: Phase): void {
+  const el = $id('timer-block-label')
+  if (!el) return
+  if (phase.customLabel || phase.label) {
+    el.textContent = phase.customLabel ?? phase.label?.toUpperCase() ?? ''
+    addClass(el, 'active')
   } else {
-    phaseLabel = phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+    removeClass(el, 'active')
   }
-  if (phaseEl) {
-    phaseEl.textContent = phaseLabel
-    phaseEl.style.color = displayColor
-  }
+}
 
-  // Time display
-  const settings = settingsManager.get()
-  if (
+function updateExerciseDisplay(phase: Phase): void {
+  const el = $id('timer-exercise')
+  if (!el) return
+  const text = formatExerciseDisplay(phase)
+  if (text) {
+    el.textContent = text
+    addClass(el, 'active')
+  } else {
+    removeClass(el, 'active')
+  }
+}
+
+function getDisplayColor(phase: Phase): string {
+  const phaseColor = PHASE_COLORS[phase.type] || 'var(--text-primary)'
+  return phase.isWait ? PHASE_COLORS.work : phaseColor
+}
+
+function updatePhaseLabel(phase: Phase, color: string): void {
+  const el = $id('timer-phase')
+  if (!el) return
+  const label = phase.isWait
+    ? 'WORK!'
+    : phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+  el.textContent = label
+  el.style.color = color
+}
+
+function shouldCountUp(phase: Phase): boolean {
+  return (
     phase.isWait ||
     timerState.type === 'stopwatch' ||
     (timerState.type === 'amrap' && phase.type === 'work') ||
     (timerState.type === 'fortime' &&
       phase.type === 'work' &&
       phase.duration === Number.POSITIVE_INFINITY)
-  ) {
-    // Count up (stopwatch style)
-    const elapsed = timerState.currentPhaseTime
-    if (timeEl) {
-      if (settings.millis && timerState.type === 'stopwatch') {
-        timeEl.textContent = formatTimeMillis(elapsed)
-      } else {
-        timeEl.textContent = formatTime(Math.floor(elapsed))
-      }
-    }
+  )
+}
+
+function updateTimeDisplay(phase: Phase, color: string): void {
+  const el = $id('timer-time')
+  if (!el) return
+
+  if (shouldCountUp(phase)) {
+    const settings = settingsManager.get()
+    el.textContent =
+      settings.millis && timerState.type === 'stopwatch'
+        ? formatTimeMillis(timerState.currentPhaseTime)
+        : formatTime(Math.floor(timerState.currentPhaseTime))
   } else {
-    // Count down
     const remaining = Math.max(0, phase.duration - timerState.currentPhaseTime)
-    if (timeEl) timeEl.textContent = formatTime(Math.ceil(remaining))
+    el.textContent = formatTime(Math.ceil(remaining))
   }
-  if (timeEl) timeEl.style.color = displayColor
+  el.style.color = color
+}
 
-  // Info
-  if (infoEl) {
-    if (phase.exerciseIndex && phase.exerciseCount) {
-      // Exercise stepping mode
-      let info = `Exercise ${phase.exerciseIndex}/${phase.exerciseCount}`
-      if (phase.label === 'amrap' && timerState.amrapRound) {
-        info = `Round ${timerState.amrapRound} | ${info}`
-      }
-      infoEl.textContent = info
-    } else if (phase.round) {
-      const totalRounds = timerState.phases.filter((p) => p.type === 'work').length
-      infoEl.textContent = `Round ${phase.round}/${totalRounds}`
-    } else if (timerState.type === 'amrap') {
-      infoEl.textContent = `Rounds: ${timerState.rounds}`
-    } else if (timerState.type === 'stopwatch' && timerState.laps.length > 0) {
-      infoEl.textContent = `Laps: ${timerState.laps.length}`
-    } else {
-      infoEl.textContent = ''
-    }
+function getInfoText(phase: Phase): string {
+  if (phase.exerciseIndex && phase.exerciseCount) {
+    const info = `Exercise ${phase.exerciseIndex}/${phase.exerciseCount}`
+    return phase.label === 'amrap' && timerState.amrapRound
+      ? `Round ${timerState.amrapRound} | ${info}`
+      : info
   }
+  if (phase.round) {
+    const totalRounds = timerState.phases.filter((p) => p.type === 'work').length
+    return `Round ${phase.round}/${totalRounds}`
+  }
+  if (timerState.type === 'amrap') return `Rounds: ${timerState.rounds}`
+  if (timerState.type === 'stopwatch' && timerState.laps.length > 0)
+    return `Laps: ${timerState.laps.length}`
+  return ''
+}
 
-  // Next phase
+function updateInfoDisplay(phase: Phase): void {
+  const el = $id('timer-info')
+  if (el) el.textContent = getInfoText(phase)
+}
+
+function updateNextPhaseDisplay(phase: Phase): void {
+  const el = $id('timer-next')
+  if (!el) return
   const nextPhaseData = timerState.phases[timerState.currentPhaseIndex + 1]
-  if (nextEl) {
-    if (nextPhaseData && !phase.isWait) {
-      const nextDuration = nextPhaseData.isWait ? '∞' : formatTime(nextPhaseData.duration)
-      nextEl.textContent = `Next: ${nextPhaseData.type} ${nextDuration}`
-    } else {
-      nextEl.textContent = ''
-    }
+  if (nextPhaseData && !phase.isWait) {
+    const nextDuration = nextPhaseData.isWait ? '∞' : formatTime(nextPhaseData.duration)
+    el.textContent = `Next: ${nextPhaseData.type} ${nextDuration}`
+  } else {
+    el.textContent = ''
   }
+}
 
-  // Progress bar
-  if (progressEl) {
-    if (phase.duration !== Number.POSITIVE_INFINITY) {
-      const progress = (timerState.currentPhaseTime / phase.duration) * 100
-      progressEl.style.width = `${100 - progress}%`
-      progressEl.style.background = displayColor
-    } else {
-      progressEl.style.width = '100%'
-      progressEl.style.background = displayColor
-    }
+function updateProgressBar(phase: Phase, color: string): void {
+  const el = $id('timer-progress')
+  if (!el) return
+  if (phase.duration !== Number.POSITIVE_INFINITY) {
+    const progress = (timerState.currentPhaseTime / phase.duration) * 100
+    el.style.width = `${100 - progress}%`
+  } else {
+    el.style.width = '100%'
   }
+  el.style.background = color
+}
 
-  // Update stats
+function calculateWorkTime(phase: Phase): number {
+  let workTime = 0
+  for (let i = 0; i < timerState.currentPhaseIndex; i++) {
+    const p = timerState.phases[i]
+    if (p?.type === 'work') workTime += p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration
+  }
+  if (phase.type === 'work') workTime += timerState.currentPhaseTime
+  return workTime
+}
+
+function updateStats(phase: Phase): void {
   const statTotalEl = $id('stat-total')
   const statWorkEl = $id('stat-work')
-  const statCapContainer = $id('stat-cap-container')
-  const statCapEl = $id('stat-cap')
+  if (statTotalEl) statTotalEl.textContent = formatTime(Math.floor(timerState.totalElapsed))
+  if (statWorkEl) statWorkEl.textContent = formatTime(Math.floor(calculateWorkTime(phase)))
+}
 
-  if (statTotalEl) {
-    statTotalEl.textContent = formatTime(Math.floor(timerState.totalElapsed))
-  }
-  if (statWorkEl) {
-    // Calculate work time so far
-    let workTime = 0
-    for (let i = 0; i < timerState.currentPhaseIndex; i++) {
-      const p = timerState.phases[i]
-      if (p?.type === 'work') {
-        workTime += p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration
-      }
-    }
-    if (phase.type === 'work') {
-      workTime += timerState.currentPhaseTime
-    }
-    statWorkEl.textContent = formatTime(Math.floor(workTime))
-  }
+function updateTimeCapDisplay(): void {
+  const container = $id('stat-cap-container') as HTMLElement | null
+  const el = $id('stat-cap')
+  if (!container || !el) return
 
-  // Time cap display
-  if (statCapContainer && statCapEl) {
-    if (timerState.globalTimeCap && timerState.globalCapStartTime) {
-      const capElapsed = (Date.now() - timerState.globalCapStartTime - timerState.pausedTime) / 1000
-      const capRemaining = Math.max(0, timerState.globalTimeCap - capElapsed)
-      statCapEl.textContent = formatTime(Math.ceil(capRemaining))
-      ;(statCapContainer as HTMLElement).style.display = ''
-    } else if (timerState.globalTimeCap) {
-      // Show full cap before it starts
-      statCapEl.textContent = formatTime(timerState.globalTimeCap)
-      ;(statCapContainer as HTMLElement).style.display = ''
-    } else {
-      ;(statCapContainer as HTMLElement).style.display = 'none'
-    }
+  if (timerState.globalTimeCap && timerState.globalCapStartTime) {
+    const capElapsed = (Date.now() - timerState.globalCapStartTime - timerState.pausedTime) / 1000
+    el.textContent = formatTime(Math.ceil(Math.max(0, timerState.globalTimeCap - capElapsed)))
+    container.style.display = ''
+  } else if (timerState.globalTimeCap) {
+    el.textContent = formatTime(timerState.globalTimeCap)
+    container.style.display = ''
+  } else {
+    container.style.display = 'none'
   }
+}
+
+function updateTimerDisplay(): void {
+  const phase = timerState.phases[timerState.currentPhaseIndex]
+  if (!phase) return
+
+  const color = getDisplayColor(phase)
+
+  updateBlockLabel(phase)
+  updateExerciseDisplay(phase)
+  updatePhaseLabel(phase, color)
+  updateTimeDisplay(phase, color)
+  updateInfoDisplay(phase)
+  updateNextPhaseDisplay(phase)
+  updateProgressBar(phase, color)
+  updateStats(phase)
+  updateTimeCapDisplay()
 }
 
 export function togglePause(): void {

@@ -5,64 +5,99 @@ function expandExercisePhases(phases: Phase[]): Phase[] {
   const result: Phase[] = []
 
   for (const phase of phases) {
-    // Expand work phases with multiple exercises and fortime/amrap label
-    if (
-      phase.type === 'work' &&
-      phase.exercises &&
-      phase.exercises.length > 1 &&
-      (phase.label === 'fortime' || phase.label === 'amrap')
-    ) {
-      const exerciseCount = phase.exercises.length
-      const isAmrap = phase.label === 'amrap'
-
-      phase.exercises.forEach((ex, idx) => {
-        result.push({
-          type: 'work',
-          duration: Number.POSITIVE_INFINITY,
-          isWait: true,
-          label: phase.label,
-          customLabel: phase.customLabel,
-          metronome: phase.metronome,
-          exercises: [ex],
-          exerciseIndex: idx + 1,
-          exerciseCount,
-          loopStart: isAmrap && idx === 0,
-          loopEnd: isAmrap && idx === exerciseCount - 1,
-          timeCap: phase.duration !== Number.POSITIVE_INFINITY ? phase.duration : undefined,
-        })
-      })
-    } else {
+    if (!shouldExpandPhase(phase) || !phase.exercises) {
       result.push(phase)
+      continue
+    }
+
+    const exerciseCount = phase.exercises.length
+    const isAmrap = phase.label === 'amrap'
+
+    for (let idx = 0; idx < phase.exercises.length; idx++) {
+      const ex = phase.exercises[idx]
+      if (!ex) continue
+      result.push({
+        type: 'work',
+        duration: Number.POSITIVE_INFINITY,
+        isWait: true,
+        label: phase.label,
+        customLabel: phase.customLabel,
+        metronome: phase.metronome,
+        exercises: [ex],
+        exerciseIndex: idx + 1,
+        exerciseCount,
+        loopStart: isAmrap && idx === 0,
+        loopEnd: isAmrap && idx === exerciseCount - 1,
+        timeCap: phase.duration !== Number.POSITIVE_INFINITY ? phase.duration : undefined,
+      })
     }
   }
 
   return result
 }
 
+function shouldExpandPhase(phase: Phase): boolean {
+  return (
+    phase.type === 'work' &&
+    !!phase.exercises &&
+    phase.exercises.length > 1 &&
+    (phase.label === 'fortime' || phase.label === 'amrap')
+  )
+}
+
+function parseReps(part: string): number | null {
+  if (part.match(/^\d+x$/i)) return Number.parseInt(part, 10)
+  return null
+}
+
+function parseWeight(part: string): { weight: number; unit: 'kg' | 'lbs' } | null {
+  if (!part.match(/^@\d+/)) return null
+  const match = part.slice(1).match(/(\d+)(kg|lbs)?/i)
+  if (!match) return null
+  return {
+    weight: Number.parseInt(match[1] ?? '0', 10),
+    unit: (match[2]?.toLowerCase() as 'kg' | 'lbs') ?? 'kg',
+  }
+}
+
+function parsePercentage(part: string): string | null {
+  return part.includes('%') ? part : null
+}
+
+function parsePse(part: string): number | null {
+  if (!part.toLowerCase().startsWith('pse')) return null
+  return Number.parseInt(part.replace(/pse\s*/i, ''), 10)
+}
+
 function parseExercise(text: string): Exercise {
   const nameMatch = text.match(/^([^(]+)/)
-  const name = nameMatch?.[1]?.trim() ?? text
-
-  const exercise: Exercise = { name }
+  const exercise: Exercise = { name: nameMatch?.[1]?.trim() ?? text }
 
   const metaMatch = text.match(/\(([^)]+)\)/)
-  if (metaMatch?.[1]) {
-    const parts = metaMatch[1].split('|').map((p) => p.trim())
-    for (const part of parts) {
-      if (part.match(/^\d+x$/i)) {
-        exercise.reps = Number.parseInt(part, 10)
-      } else if (part.match(/^@\d+/)) {
-        const match = part.slice(1).match(/(\d+)(kg|lbs)?/i)
-        if (match) {
-          exercise.weight = Number.parseInt(match[1] ?? '0', 10)
-          exercise.weightUnit = (match[2]?.toLowerCase() as 'kg' | 'lbs') ?? 'kg'
-        }
-      } else if (part.includes('%')) {
-        exercise.percentage = part
-      } else if (part.toLowerCase().startsWith('pse')) {
-        exercise.pse = Number.parseInt(part.replace(/pse\s*/i, ''), 10)
-      }
+  if (!metaMatch?.[1]) return exercise
+
+  for (const part of metaMatch[1].split('|').map((p) => p.trim())) {
+    const reps = parseReps(part)
+    if (reps !== null) {
+      exercise.reps = reps
+      continue
     }
+
+    const weight = parseWeight(part)
+    if (weight) {
+      exercise.weight = weight.weight
+      exercise.weightUnit = weight.unit
+      continue
+    }
+
+    const percentage = parsePercentage(part)
+    if (percentage) {
+      exercise.percentage = percentage
+      continue
+    }
+
+    const pse = parsePse(part)
+    if (pse !== null) exercise.pse = pse
   }
 
   return exercise
@@ -71,439 +106,515 @@ function parseExercise(text: string): Exercise {
 function extractMetronome(line: string): { bpm: number | null; cleanedLine: string } {
   const match = line.match(/\[(\d+)\s*bpm\]/i)
   if (match?.[1]) {
-    return {
-      bpm: Number.parseInt(match[1], 10),
-      cleanedLine: line.replace(match[0], '').trim(),
-    }
+    return { bpm: Number.parseInt(match[1], 10), cleanedLine: line.replace(match[0], '').trim() }
   }
   return { bpm: null, cleanedLine: line }
 }
 
-export function parseCustomWorkout(text: string): ParsedWorkout {
-  const phases: Phase[] = []
-  const blocks: WorkoutBlock[] = []
+interface ParserContext {
+  phases: Phase[]
+  blocks: WorkoutBlock[]
+  currentBlockType: BlockType | null
+  currentCustomLabel: string | null
+  currentMetronome: number | null
+  currentExercises: Exercise[]
+  repeatCount: number
+  repeatPhases: Phase[]
+  inRepeat: boolean
+  repeatLabel: string | null
+  repeatMetronome: number | null
+}
 
+function createContext(): ParserContext {
+  return {
+    phases: [],
+    blocks: [],
+    currentBlockType: null,
+    currentCustomLabel: null,
+    currentMetronome: null,
+    currentExercises: [],
+    repeatCount: 1,
+    repeatPhases: [],
+    inRepeat: false,
+    repeatLabel: null,
+    repeatMetronome: null,
+  }
+}
+
+function createBlock(
+  type: BlockType,
+  blockPhases: Phase[],
+  label?: string,
+  repetitions?: number,
+  exercises?: Exercise[],
+  metronome?: number
+): WorkoutBlock {
+  return {
+    type,
+    label,
+    phases: blockPhases,
+    totalDuration: blockPhases.reduce(
+      (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
+      0
+    ),
+    repetitions,
+    exercises: exercises?.length ? exercises : undefined,
+    metronome,
+  }
+}
+
+function flushCurrentBlock(ctx: ParserContext): void {
+  if (ctx.currentExercises.length > 0 && ctx.phases.length > 0) {
+    const lastPhase = ctx.phases[ctx.phases.length - 1]
+    if (lastPhase && !lastPhase.exercises?.length) {
+      lastPhase.exercises = [...ctx.currentExercises]
+    }
+  }
+  ctx.currentExercises = []
+}
+
+function resetRepeatState(ctx: ParserContext): void {
+  ctx.inRepeat = false
+  ctx.repeatCount = 1
+  ctx.repeatPhases = []
+  ctx.repeatLabel = null
+  ctx.repeatMetronome = null
+}
+
+function expandRepeatPhases(ctx: ParserContext): Phase[] {
+  const blockPhases: Phase[] = []
+  for (let r = 0; r < ctx.repeatCount; r++) {
+    for (const p of ctx.repeatPhases) {
+      const phase = { ...p }
+      if (ctx.currentExercises.length > 0 && !phase.exercises?.length) {
+        phase.exercises = [...ctx.currentExercises]
+      }
+      ctx.phases.push(phase)
+      blockPhases.push(phase)
+    }
+  }
+  return blockPhases
+}
+
+function closeRepeat(ctx: ParserContext): void {
+  if (!ctx.inRepeat || ctx.repeatPhases.length === 0) {
+    resetRepeatState(ctx)
+    return
+  }
+
+  const blockPhases = expandRepeatPhases(ctx)
+  ctx.blocks.push(
+    createBlock(
+      ctx.repeatLabel === 'tabata' ? 'tabata' : 'work',
+      blockPhases,
+      ctx.currentCustomLabel ?? ctx.repeatLabel ?? undefined,
+      ctx.repeatCount,
+      ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+      ctx.repeatMetronome ?? undefined
+    )
+  )
+  ctx.currentExercises = []
+  ctx.currentCustomLabel = null
+  resetRepeatState(ctx)
+}
+
+function handleCommentLine(rawLine: string, ctx: ParserContext): boolean {
+  if (!rawLine.startsWith('#')) return false
+  flushCurrentBlock(ctx)
+  ctx.currentCustomLabel = rawLine.slice(1).trim()
+  return true
+}
+
+function handleEmptyLine(rawLine: string, ctx: ParserContext): boolean {
+  if (rawLine !== '') return false
+  closeRepeat(ctx)
+  return true
+}
+
+function getWaitPhaseType(lineLower: string, blockType: BlockType | null): PhaseType {
+  if (lineLower === 'wait work') return 'work'
+  if (lineLower === 'wait rest') return 'rest'
+  if (lineLower === 'wait' && blockType === 'warmup') return 'warmup'
+  if (lineLower === 'wait' && blockType === 'cooldown') return 'cooldown'
+  return 'wait'
+}
+
+function createWaitPhase(ctx: ParserContext, phaseType: PhaseType): Phase {
+  return {
+    type: phaseType,
+    duration: Number.POSITIVE_INFINITY,
+    isWait: true,
+    customLabel: ctx.currentCustomLabel ?? undefined,
+    metronome: ctx.inRepeat
+      ? (ctx.repeatMetronome ?? undefined)
+      : (ctx.currentMetronome ?? undefined),
+  }
+}
+
+function addWaitBlockToContext(ctx: ParserContext, phase: Phase): void {
+  flushCurrentBlock(ctx)
+  if (ctx.currentExercises.length > 0) phase.exercises = [...ctx.currentExercises]
+  ctx.phases.push(phase)
+  ctx.blocks.push(
+    createBlock(
+      'wait',
+      [phase],
+      ctx.currentCustomLabel ?? undefined,
+      undefined,
+      ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+      ctx.currentMetronome ?? undefined
+    )
+  )
+  ctx.currentExercises = []
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+}
+
+function handleWaitLine(lineLower: string, ctx: ParserContext): boolean {
+  if (lineLower !== 'wait' && !lineLower.startsWith('wait ')) return false
+
+  const phaseType = getWaitPhaseType(lineLower, ctx.currentBlockType)
+  const phase = createWaitPhase(ctx, phaseType)
+
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push(phase)
+  } else {
+    addWaitBlockToContext(ctx, phase)
+  }
+  return true
+}
+
+function handleExerciseLine(line: string, ctx: ParserContext): boolean {
+  if (!line.startsWith('-') && !line.startsWith('•')) return false
+
+  const exercise = parseExercise(line.slice(1).trim())
+  ctx.currentExercises.push(exercise)
+
+  if (ctx.phases.length > 0) {
+    const lastPhase = ctx.phases[ctx.phases.length - 1]
+    if (lastPhase) {
+      if (!lastPhase.exercises) lastPhase.exercises = []
+      lastPhase.exercises.push(exercise)
+    }
+  }
+  if (ctx.blocks.length > 0) {
+    const lastBlock = ctx.blocks[ctx.blocks.length - 1]
+    if (lastBlock) {
+      if (!lastBlock.exercises) lastBlock.exercises = []
+      lastBlock.exercises.push(exercise)
+    }
+  }
+  return true
+}
+
+function handleEmomLabel(lineLower: string, ctx: ParserContext): boolean {
+  if (!lineLower.match(/^emom(\s+\d+)?$/i)) return false
+  ctx.currentBlockType = 'emom'
+  return true
+}
+
+function handleForTimeLine(lineLower: string, ctx: ParserContext): boolean {
+  if (!lineLower.match(/^for\s*time\s+\d+/i)) return false
+
+  closeRepeat(ctx)
+  flushCurrentBlock(ctx)
+  const duration = parseTimeDuration(lineLower)
+  if (duration <= 0) return true
+
+  const phase: Phase = {
+    type: 'work',
+    duration,
+    label: 'fortime',
+    customLabel: ctx.currentCustomLabel ?? undefined,
+    metronome: ctx.currentMetronome ?? undefined,
+    exercises: ctx.currentExercises.length > 0 ? [...ctx.currentExercises] : undefined,
+  }
+  ctx.phases.push(phase)
+  ctx.blocks.push(
+    createBlock(
+      'fortime',
+      [phase],
+      ctx.currentCustomLabel ?? 'For Time',
+      undefined,
+      ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+      ctx.currentMetronome ?? undefined
+    )
+  )
+  ctx.currentExercises = []
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+  return true
+}
+
+function handleAmrapLine(lineLower: string, ctx: ParserContext): boolean {
+  if (!lineLower.match(/^amrap\s+\d+/i)) return false
+
+  closeRepeat(ctx)
+  flushCurrentBlock(ctx)
+  const duration = parseTimeDuration(lineLower)
+  if (duration <= 0) return true
+
+  const phase: Phase = {
+    type: 'work',
+    duration,
+    label: 'amrap',
+    customLabel: ctx.currentCustomLabel ?? undefined,
+    metronome: ctx.currentMetronome ?? undefined,
+    exercises: ctx.currentExercises.length > 0 ? [...ctx.currentExercises] : undefined,
+  }
+  ctx.phases.push(phase)
+  ctx.blocks.push(
+    createBlock(
+      'amrap',
+      [phase],
+      ctx.currentCustomLabel ?? 'AMRAP',
+      undefined,
+      ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+      ctx.currentMetronome ?? undefined
+    )
+  )
+  ctx.currentExercises = []
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+  return true
+}
+
+function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
+  const match = lineLower.match(/^(\d+)\s*(s|sec|m|min)?\s*(work|rest)$/i)
+  if (!match) return false
+
+  const num = Number.parseInt(match[1] ?? '0', 10)
+  const unit = match[2]?.toLowerCase()
+  const type = (match[3]?.toLowerCase() ?? 'work') as PhaseType
+  const duration = unit?.startsWith('m') ? num * 60 : num
+
+  const phase: Phase = {
+    type,
+    duration,
+    metronome: ctx.inRepeat
+      ? (ctx.repeatMetronome ?? undefined)
+      : (ctx.currentMetronome ?? undefined),
+  }
+
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push(phase)
+    return true
+  }
+
+  if (ctx.currentExercises.length > 0) phase.exercises = [...ctx.currentExercises]
+  phase.customLabel = ctx.currentCustomLabel ?? undefined
+  ctx.phases.push(phase)
+
+  if (!ctx.currentBlockType) {
+    ctx.blocks.push(
+      createBlock(
+        type as BlockType,
+        [phase],
+        ctx.currentCustomLabel ?? undefined,
+        undefined,
+        ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+        ctx.currentMetronome ?? undefined
+      )
+    )
+    ctx.currentExercises = []
+    ctx.currentCustomLabel = null
+    ctx.currentMetronome = null
+  }
+  return true
+}
+
+function handleStandaloneRestLine(lineLower: string, ctx: ParserContext): boolean {
+  const timeMatch =
+    lineLower.match(/^(\d+):(\d+)$/) ||
+    lineLower.match(/^(\d+)\s*(s|sec|seconds?)?$/) ||
+    lineLower.match(/^(\d+)\s*(m|min|minutes?)$/)
+
+  if (!lineLower.includes('rest') || !lineLower.match(/\d+/) || timeMatch) return false
+
+  const duration = parseTimeDuration(lineLower)
+  if (duration <= 0) return false
+
+  closeRepeat(ctx)
+  flushCurrentBlock(ctx)
+  const phase: Phase = { type: 'rest', duration, customLabel: ctx.currentCustomLabel ?? undefined }
+  ctx.phases.push(phase)
+  ctx.blocks.push(createBlock('rest', [phase], ctx.currentCustomLabel ?? undefined))
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+  return true
+}
+
+function handleBlockTypeKeyword(lineLower: string, ctx: ParserContext): boolean {
+  if (lineLower === 'warmup' || lineLower === 'warm up' || lineLower === 'warm-up') {
+    closeRepeat(ctx)
+    flushCurrentBlock(ctx)
+    ctx.currentBlockType = 'warmup'
+    return true
+  }
+  if (lineLower === 'cooldown' || lineLower === 'cool down' || lineLower === 'cool-down') {
+    closeRepeat(ctx)
+    flushCurrentBlock(ctx)
+    ctx.currentBlockType = 'cooldown'
+    return true
+  }
+  if (lineLower === 'work') {
+    ctx.currentBlockType = 'work'
+    return true
+  }
+  if (lineLower === 'rest') {
+    ctx.currentBlockType = 'rest'
+    return true
+  }
+  return false
+}
+
+function handleRepeatLine(lineLower: string, ctx: ParserContext): boolean {
+  if (lineLower.match(/^(tabata|hiit|intervals?)\s*(\d+)x?$/i)) {
+    closeRepeat(ctx)
+    flushCurrentBlock(ctx)
+    const match = lineLower.match(/(\d+)/)
+    ctx.repeatCount = Number.parseInt(match?.[1] ?? '1', 10) || 1
+    ctx.inRepeat = true
+    ctx.repeatPhases = []
+    ctx.repeatLabel = 'tabata'
+    ctx.repeatMetronome = ctx.currentMetronome
+    ctx.currentMetronome = null
+    return true
+  }
+  if (lineLower.match(/^(\d+)x$/)) {
+    closeRepeat(ctx)
+    flushCurrentBlock(ctx)
+    const match = lineLower.match(/(\d+)/)
+    ctx.repeatCount = Number.parseInt(match?.[1] ?? '1', 10) || 1
+    ctx.inRepeat = true
+    ctx.repeatPhases = []
+    ctx.repeatLabel = ctx.currentBlockType ?? null
+    ctx.repeatMetronome = ctx.currentMetronome
+    ctx.currentMetronome = null
+    return true
+  }
+  if (lineLower === 'end' || lineLower === 'endrepeat') {
+    closeRepeat(ctx)
+    return true
+  }
+  return false
+}
+
+function parseTimeFromLine(lineLower: string): number {
+  const colonMatch = lineLower.match(/^(\d+):(\d+)$/)
+  if (colonMatch) {
+    return (
+      Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
+    )
+  }
+  if (lineLower.match(/(\d+)\s*(m|min)/)) {
+    const numMatch = lineLower.match(/(\d+)/)
+    return Number.parseInt(numMatch?.[1] ?? '0', 10) * 60
+  }
+  const numMatch = lineLower.match(/(\d+)/)
+  return Number.parseInt(numMatch?.[1] ?? '0', 10)
+}
+
+function getPhaseTypeFromLine(lineLower: string, blockType: BlockType | null): PhaseType {
+  if (lineLower.includes('rest')) return 'rest'
+  if (lineLower.includes('work')) return 'work'
+  if (blockType === 'warmup') return 'warmup'
+  if (blockType === 'cooldown') return 'cooldown'
+  return 'work'
+}
+
+function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
+  const timeMatch =
+    lineLower.match(/^(\d+):(\d+)$/) ||
+    lineLower.match(/^(\d+)\s*(s|sec|seconds?)?$/) ||
+    lineLower.match(/^(\d+)\s*(m|min|minutes?)$/)
+
+  if (!timeMatch && !lineLower.match(/^\d+\s*(s|m|sec|min)/)) return false
+
+  const duration = parseTimeFromLine(lineLower)
+  const phaseType = getPhaseTypeFromLine(lineLower, ctx.currentBlockType)
+
+  const phase: Phase = {
+    type: phaseType,
+    duration,
+    metronome: ctx.inRepeat
+      ? (ctx.repeatMetronome ?? undefined)
+      : (ctx.currentMetronome ?? undefined),
+  }
+
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push(phase)
+    return true
+  }
+
+  if (ctx.currentExercises.length > 0) phase.exercises = [...ctx.currentExercises]
+  phase.customLabel = ctx.currentCustomLabel ?? undefined
+  ctx.phases.push(phase)
+
+  if (ctx.currentBlockType === 'warmup' || ctx.currentBlockType === 'cooldown') {
+    ctx.blocks.push(
+      createBlock(
+        ctx.currentBlockType,
+        [phase],
+        ctx.currentCustomLabel ?? undefined,
+        undefined,
+        undefined,
+        ctx.currentMetronome ?? undefined
+      )
+    )
+    ctx.currentExercises = []
+    ctx.currentCustomLabel = null
+    ctx.currentMetronome = null
+  }
+
+  ctx.currentBlockType = null
+  return true
+}
+
+function processLine(rawLine: string, ctx: ParserContext): void {
+  if (handleCommentLine(rawLine, ctx)) return
+  if (handleEmptyLine(rawLine, ctx)) return
+
+  const { bpm: lineBpm, cleanedLine } = extractMetronome(rawLine)
+  if (lineBpm !== null) {
+    if (ctx.inRepeat) ctx.repeatMetronome = lineBpm
+    else ctx.currentMetronome = lineBpm
+  }
+
+  const line = cleanedLine
+  const lineLower = line.toLowerCase()
+
+  if (handleWaitLine(lineLower, ctx)) return
+  if (handleExerciseLine(line, ctx)) return
+  if (handleEmomLabel(lineLower, ctx)) return
+  if (handleForTimeLine(lineLower, ctx)) return
+  if (handleAmrapLine(lineLower, ctx)) return
+  if (handleTimeTypeLine(lineLower, ctx)) return
+  if (handleStandaloneRestLine(lineLower, ctx)) return
+  if (handleBlockTypeKeyword(lineLower, ctx)) return
+  if (handleRepeatLine(lineLower, ctx)) return
+  handleTimeLine(lineLower, ctx)
+}
+
+export function parseCustomWorkout(text: string): ParsedWorkout {
+  const ctx = createContext()
   const lines = text
     .trim()
     .split('\n')
     .map((l) => l.trim())
 
-  let currentBlockType: BlockType | null = null
-  let currentCustomLabel: string | null = null
-  let currentMetronome: number | null = null
-  let currentExercises: Exercise[] = []
-  let repeatCount = 1
-  let repeatPhases: Phase[] = []
-  let inRepeat = false
-  let repeatLabel: string | null = null
-  let repeatMetronome: number | null = null
-
-  function createBlock(
-    type: BlockType,
-    blockPhases: Phase[],
-    label?: string,
-    repetitions?: number,
-    exercises?: Exercise[],
-    metronome?: number
-  ): WorkoutBlock {
-    return {
-      type,
-      label,
-      phases: blockPhases,
-      totalDuration: blockPhases.reduce(
-        (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
-        0
-      ),
-      repetitions,
-      exercises: exercises?.length ? exercises : undefined,
-      metronome,
-    }
-  }
-
-  function flushCurrentBlock(): void {
-    if (currentExercises.length > 0 && phases.length > 0) {
-      const lastPhase = phases[phases.length - 1]
-      if (lastPhase && !lastPhase.exercises?.length) {
-        lastPhase.exercises = [...currentExercises]
-      }
-    }
-    currentExercises = []
-  }
-
-  function closeRepeat(): void {
-    if (inRepeat && repeatPhases.length > 0) {
-      const blockPhases: Phase[] = []
-      for (let r = 0; r < repeatCount; r++) {
-        for (const p of repeatPhases) {
-          const phase = { ...p }
-          if (currentExercises.length > 0 && !phase.exercises?.length) {
-            phase.exercises = [...currentExercises]
-          }
-          phases.push(phase)
-          blockPhases.push(phase)
-        }
-      }
-      blocks.push(
-        createBlock(
-          repeatLabel === 'tabata' ? 'tabata' : 'work',
-          blockPhases,
-          currentCustomLabel ?? repeatLabel ?? undefined,
-          repeatCount,
-          currentExercises.length > 0 ? currentExercises : undefined,
-          repeatMetronome ?? undefined
-        )
-      )
-      currentExercises = []
-      currentCustomLabel = null
-    }
-    inRepeat = false
-    repeatCount = 1
-    repeatPhases = []
-    repeatLabel = null
-    repeatMetronome = null
-  }
-
   for (const rawLine of lines) {
-    // Parse custom label (# Label)
-    if (rawLine.startsWith('#')) {
-      flushCurrentBlock()
-      currentCustomLabel = rawLine.slice(1).trim()
-      continue
-    }
-
-    // Skip empty lines but use them to close repeat blocks
-    if (rawLine === '') {
-      closeRepeat()
-      continue
-    }
-
-    // Extract metronome from line
-    const { bpm: lineBpm, cleanedLine } = extractMetronome(rawLine)
-    if (lineBpm !== null) {
-      if (inRepeat) {
-        repeatMetronome = lineBpm
-      } else {
-        currentMetronome = lineBpm
-      }
-    }
-
-    const line = cleanedLine
-    const lineLower = line.toLowerCase()
-
-    // Parse wait (standalone, wait work, wait rest)
-    if (lineLower === 'wait' || lineLower.startsWith('wait ')) {
-      // Determine the effective phase type for the wait
-      let waitPhaseType: PhaseType = 'wait'
-
-      if (lineLower === 'wait work') {
-        waitPhaseType = 'work'
-      } else if (lineLower === 'wait rest') {
-        waitPhaseType = 'rest'
-      } else if (lineLower === 'wait') {
-        // Inherit from current block type if inside warmup/cooldown
-        if (currentBlockType === 'warmup') waitPhaseType = 'warmup'
-        else if (currentBlockType === 'cooldown') waitPhaseType = 'cooldown'
-      }
-
-      const phase: Phase = {
-        type: waitPhaseType,
-        duration: Number.POSITIVE_INFINITY,
-        isWait: true,
-        customLabel: currentCustomLabel ?? undefined,
-        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
-      }
-
-      if (inRepeat) {
-        repeatPhases.push(phase)
-      } else {
-        flushCurrentBlock()
-        if (currentExercises.length > 0) {
-          phase.exercises = [...currentExercises]
-        }
-        phases.push(phase)
-        blocks.push(
-          createBlock(
-            'wait',
-            [phase],
-            currentCustomLabel ?? undefined,
-            undefined,
-            currentExercises.length > 0 ? currentExercises : undefined,
-            currentMetronome ?? undefined
-          )
-        )
-        currentExercises = []
-        currentCustomLabel = null
-        currentMetronome = null
-      }
-      continue
-    }
-
-    // Parse exercises (- or •)
-    if (line.startsWith('-') || line.startsWith('•')) {
-      const exercise = parseExercise(line.slice(1).trim())
-      currentExercises.push(exercise)
-
-      // Also attach to the last phase and block if they exist
-      if (phases.length > 0) {
-        const lastPhase = phases[phases.length - 1]
-        if (lastPhase) {
-          if (!lastPhase.exercises) lastPhase.exercises = []
-          lastPhase.exercises.push(exercise)
-        }
-      }
-      if (blocks.length > 0) {
-        const lastBlock = blocks[blocks.length - 1]
-        if (lastBlock) {
-          if (!lastBlock.exercises) lastBlock.exercises = []
-          lastBlock.exercises.push(exercise)
-        }
-      }
-      continue
-    }
-
-    // EMOM section labels (ignore, just organizational)
-    if (lineLower.match(/^emom(\s+\d+)?$/i)) {
-      currentBlockType = 'emom'
-      continue
-    }
-
-    // ForTime with cap: "fortime 10min" -> work phase of given duration
-    if (lineLower.match(/^for\s*time\s+\d+/i)) {
-      closeRepeat()
-      flushCurrentBlock()
-      const duration = parseTimeDuration(lineLower)
-      if (duration > 0) {
-        const phase: Phase = {
-          type: 'work',
-          duration,
-          label: 'fortime',
-          customLabel: currentCustomLabel ?? undefined,
-          metronome: currentMetronome ?? undefined,
-          exercises: currentExercises.length > 0 ? [...currentExercises] : undefined,
-        }
-        phases.push(phase)
-        blocks.push(
-          createBlock(
-            'fortime',
-            [phase],
-            currentCustomLabel ?? 'For Time',
-            undefined,
-            currentExercises.length > 0 ? currentExercises : undefined,
-            currentMetronome ?? undefined
-          )
-        )
-        currentExercises = []
-        currentCustomLabel = null
-        currentMetronome = null
-      }
-      continue
-    }
-
-    // AMRAP: "amrap 12min" -> work phase of given duration
-    if (lineLower.match(/^amrap\s+\d+/i)) {
-      closeRepeat()
-      flushCurrentBlock()
-      const duration = parseTimeDuration(lineLower)
-      if (duration > 0) {
-        const phase: Phase = {
-          type: 'work',
-          duration,
-          label: 'amrap',
-          customLabel: currentCustomLabel ?? undefined,
-          metronome: currentMetronome ?? undefined,
-          exercises: currentExercises.length > 0 ? [...currentExercises] : undefined,
-        }
-        phases.push(phase)
-        blocks.push(
-          createBlock(
-            'amrap',
-            [phase],
-            currentCustomLabel ?? 'AMRAP',
-            undefined,
-            currentExercises.length > 0 ? currentExercises : undefined,
-            currentMetronome ?? undefined
-          )
-        )
-        currentExercises = []
-        currentCustomLabel = null
-        currentMetronome = null
-      }
-      continue
-    }
-
-    // Parse "Xs work", "Xs rest", "Xmin work", "Xmin rest" patterns first
-    const timeTypeMatch = lineLower.match(/^(\d+)\s*(s|sec|m|min)?\s*(work|rest)$/i)
-    if (timeTypeMatch) {
-      const num = Number.parseInt(timeTypeMatch[1] ?? '0', 10)
-      const unit = timeTypeMatch[2]?.toLowerCase()
-      const type = (timeTypeMatch[3]?.toLowerCase() ?? 'work') as PhaseType
-      const duration = unit?.startsWith('m') ? num * 60 : num
-
-      const phase: Phase = {
-        type,
-        duration,
-        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
-      }
-      if (inRepeat) {
-        repeatPhases.push(phase)
-      } else {
-        if (currentExercises.length > 0) {
-          phase.exercises = [...currentExercises]
-        }
-        phase.customLabel = currentCustomLabel ?? undefined
-        phases.push(phase)
-
-        // Create a simple block for standalone phases
-        if (!currentBlockType) {
-          blocks.push(
-            createBlock(
-              type as BlockType,
-              [phase],
-              currentCustomLabel ?? undefined,
-              undefined,
-              currentExercises.length > 0 ? currentExercises : undefined,
-              currentMetronome ?? undefined
-            )
-          )
-          currentExercises = []
-          currentCustomLabel = null
-          currentMetronome = null
-        }
-      }
-      continue
-    }
-
-    // Parse time: "30s", "1m", "1:30", "90"
-    const timeMatch =
-      lineLower.match(/^(\d+):(\d+)$/) ||
-      lineLower.match(/^(\d+)\s*(s|sec|seconds?)?$/) ||
-      lineLower.match(/^(\d+)\s*(m|min|minutes?)$/)
-
-    // Standalone rest: "1min rest", "30s rest", "rest 1min"
-    if (lineLower.includes('rest') && lineLower.match(/\d+/) && !timeMatch) {
-      const duration = parseTimeDuration(lineLower)
-      if (duration > 0) {
-        closeRepeat()
-        flushCurrentBlock()
-        const phase: Phase = {
-          type: 'rest',
-          duration,
-          customLabel: currentCustomLabel ?? undefined,
-        }
-        phases.push(phase)
-        blocks.push(createBlock('rest', [phase], currentCustomLabel ?? undefined))
-        currentCustomLabel = null
-        currentMetronome = null
-        continue
-      }
-    }
-
-    if (lineLower === 'warmup' || lineLower === 'warm up' || lineLower === 'warm-up') {
-      closeRepeat()
-      flushCurrentBlock()
-      currentBlockType = 'warmup'
-    } else if (lineLower === 'cooldown' || lineLower === 'cool down' || lineLower === 'cool-down') {
-      closeRepeat()
-      flushCurrentBlock()
-      currentBlockType = 'cooldown'
-    } else if (lineLower.match(/^(tabata|hiit|intervals?)\s*(\d+)x?$/i)) {
-      closeRepeat()
-      flushCurrentBlock()
-      const match = lineLower.match(/(\d+)/)
-      repeatCount = Number.parseInt(match?.[1] ?? '1', 10) || 1
-      inRepeat = true
-      repeatPhases = []
-      repeatLabel = 'tabata'
-      repeatMetronome = currentMetronome
-      currentMetronome = null
-    } else if (lineLower.match(/^(\d+)x$/)) {
-      closeRepeat()
-      flushCurrentBlock()
-      const match = lineLower.match(/(\d+)/)
-      repeatCount = Number.parseInt(match?.[1] ?? '1', 10) || 1
-      inRepeat = true
-      repeatPhases = []
-      repeatLabel = currentBlockType ?? null
-      repeatMetronome = currentMetronome
-      currentMetronome = null
-    } else if (lineLower === 'end' || lineLower === 'endrepeat') {
-      closeRepeat()
-    } else if (timeMatch || lineLower.match(/^\d+\s*(s|m|sec|min)/)) {
-      let duration = 0
-
-      const colonMatch = lineLower.match(/^(\d+):(\d+)$/)
-      if (colonMatch) {
-        duration =
-          Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
-      } else if (lineLower.match(/(\d+)\s*(m|min)/)) {
-        const numMatch = lineLower.match(/(\d+)/)
-        duration = Number.parseInt(numMatch?.[1] ?? '0', 10) * 60
-      } else {
-        const numMatch = lineLower.match(/(\d+)/)
-        duration = Number.parseInt(numMatch?.[1] ?? '0', 10)
-      }
-
-      let phaseType: PhaseType = 'work'
-      if (lineLower.includes('rest')) phaseType = 'rest'
-      else if (lineLower.includes('work')) phaseType = 'work'
-      else if (currentBlockType === 'warmup') phaseType = 'warmup'
-      else if (currentBlockType === 'cooldown') phaseType = 'cooldown'
-
-      const phase: Phase = {
-        type: phaseType,
-        duration,
-        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
-      }
-
-      if (inRepeat) {
-        repeatPhases.push(phase)
-      } else {
-        if (currentExercises.length > 0) {
-          phase.exercises = [...currentExercises]
-        }
-        phase.customLabel = currentCustomLabel ?? undefined
-        phases.push(phase)
-
-        // Create block for warmup/cooldown
-        if (currentBlockType === 'warmup' || currentBlockType === 'cooldown') {
-          blocks.push(
-            createBlock(
-              currentBlockType,
-              [phase],
-              currentCustomLabel ?? undefined,
-              undefined,
-              undefined,
-              currentMetronome ?? undefined
-            )
-          )
-          currentExercises = []
-          currentCustomLabel = null
-          currentMetronome = null
-        }
-      }
-
-      if (!inRepeat) currentBlockType = null
-    } else if (lineLower === 'work') {
-      currentBlockType = 'work'
-    } else if (lineLower === 'rest') {
-      currentBlockType = 'rest'
-    }
+    processLine(rawLine, ctx)
   }
 
-  // Handle unclosed repeat
-  closeRepeat()
+  closeRepeat(ctx)
+  flushCurrentBlock(ctx)
 
-  // Handle any remaining exercises
-  flushCurrentBlock()
-
-  if (phases.length === 0) {
+  if (ctx.phases.length === 0) {
     return { error: 'No valid phases found', phases: [], blocks: [] }
   }
 
-  // Expand phases with multiple exercises into individual wait phases
-  const expandedPhases = expandExercisePhases(phases)
-
-  return { phases: expandedPhases, blocks }
+  return { phases: expandExercisePhases(ctx.phases), blocks: ctx.blocks }
 }
 
 export { customPresets, intervalPresets } from './presets'

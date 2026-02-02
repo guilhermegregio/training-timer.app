@@ -112,6 +112,62 @@ export function updateBpmSlider(value: string): void {
   currentMetroSettings.bpm = Math.max(5, Math.min(200, Number.parseInt(value, 10) || 120))
 }
 
+interface PreviewStats {
+  total: number
+  workTime: number
+  rounds: number
+  waitCount: number
+}
+
+function calculatePreviewStats(phases: { type: string; duration: number }[]): PreviewStats {
+  const total = phases.reduce(
+    (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
+    0
+  )
+  const workPhases = phases.filter((p) => p.type === 'work')
+  const workTime = workPhases.reduce(
+    (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
+    0
+  )
+  return {
+    total,
+    workTime,
+    rounds: workPhases.length,
+    waitCount: phases.filter((p) => p.type === 'wait').length,
+  }
+}
+
+function renderCustomPreviewStats(
+  phases: { type: string; duration: number }[],
+  blocks: WorkoutBlock[]
+): string {
+  const stats = calculatePreviewStats(phases)
+  const waitStat =
+    stats.waitCount > 0
+      ? `<div class="preview-stat"><div class="preview-stat-value">${stats.waitCount}</div><div class="preview-stat-label">Waits</div></div>`
+      : ''
+
+  return `
+    <h4>Preview</h4>
+    <div class="preview-stats">
+      <div class="preview-stat">
+        <div class="preview-stat-value">${formatTime(stats.total)}</div>
+        <div class="preview-stat-label">Total</div>
+      </div>
+      <div class="preview-stat">
+        <div class="preview-stat-value">${formatTime(stats.workTime)}</div>
+        <div class="preview-stat-label">Work</div>
+      </div>
+      <div class="preview-stat">
+        <div class="preview-stat-value">${stats.rounds}</div>
+        <div class="preview-stat-label">Work Phases</div>
+      </div>
+      ${waitStat}
+    </div>
+    ${renderBlockPreview(blocks)}
+  `
+}
+
 export const timerConfigs: Record<string, TimerDefinition> = {
   stopwatch: {
     title: 'Stopwatch',
@@ -375,49 +431,25 @@ cooldown
     },
     onUpdate: () => {
       const textEl = $id('custom-text') as HTMLTextAreaElement | null
-      const text = textEl?.value ?? ''
-      const result = parseCustomWorkout(text)
+      const result = parseCustomWorkout(textEl?.value ?? '')
       const previewEl = $id('custom-preview')
       const errorEl = $id('custom-error')
 
       if (result.error) {
         if (errorEl) errorEl.textContent = result.error
         if (previewEl) previewEl.innerHTML = ''
-      } else if (result.phases?.length > 0) {
-        if (errorEl) errorEl.textContent = ''
-        const total = result.phases.reduce(
-          (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
-          0
-        )
-        const workTime = result.phases
-          .filter((p) => p.type === 'work')
-          .reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0)
-        const rounds = result.phases.filter((p) => p.type === 'work').length
-        const waitCount = result.phases.filter((p) => p.type === 'wait').length
-        if (previewEl) {
-          previewEl.innerHTML = `
-            <h4>Preview</h4>
-            <div class="preview-stats">
-              <div class="preview-stat">
-                <div class="preview-stat-value">${formatTime(total)}</div>
-                <div class="preview-stat-label">Total</div>
-              </div>
-              <div class="preview-stat">
-                <div class="preview-stat-value">${formatTime(workTime)}</div>
-                <div class="preview-stat-label">Work</div>
-              </div>
-              <div class="preview-stat">
-                <div class="preview-stat-value">${rounds}</div>
-                <div class="preview-stat-label">Work Phases</div>
-              </div>
-              ${waitCount > 0 ? `<div class="preview-stat"><div class="preview-stat-value">${waitCount}</div><div class="preview-stat-label">Waits</div></div>` : ''}
-            </div>
-            ${renderBlockPreview(result.blocks)}
-          `
-        }
-      } else {
-        if (errorEl) errorEl.textContent = ''
+        return
+      }
+
+      if (errorEl) errorEl.textContent = ''
+
+      if (!result.phases?.length) {
         if (previewEl) previewEl.innerHTML = ''
+        return
+      }
+
+      if (previewEl) {
+        previewEl.innerHTML = renderCustomPreviewStats(result.phases, result.blocks)
       }
     },
   },

@@ -3,12 +3,25 @@ import type { SavedWorkout, TimerType } from '@/types'
 import { $id, addClass, escapeHtml, getInputValue, removeClass } from '@/utils'
 import { renderLibrary } from './library'
 
-export function openSaveModal(workout: SavedWorkout | null = null): void {
-  const isEdit = !!workout
-  const modalContent = $id('modal-content')
-  if (!modalContent) return
+function renderTypeSelect(selectedType: TimerType | undefined): string {
+  const types = [
+    { value: 'intervals', label: 'Intervals' },
+    { value: 'emom', label: 'EMOM' },
+    { value: 'amrap', label: 'AMRAP' },
+    { value: 'fortime', label: 'For Time' },
+    { value: 'custom', label: 'Custom' },
+  ]
+  return types
+    .map(
+      (t) =>
+        `<option value="${t.value}" ${selectedType === t.value ? 'selected' : ''}>${t.label}</option>`
+    )
+    .join('')
+}
 
-  modalContent.innerHTML = `
+function renderSaveModalContent(workout: SavedWorkout | null): string {
+  const isEdit = !!workout
+  return `
     <h2>${isEdit ? 'Edit' : 'Save'} Workout</h2>
     <div class="form-group">
       <label>Name</label>
@@ -20,13 +33,7 @@ export function openSaveModal(workout: SavedWorkout | null = null): void {
     </div>
     <div class="form-group">
       <label>Type</label>
-      <select id="save-type">
-        <option value="intervals" ${workout?.type === 'intervals' ? 'selected' : ''}>Intervals</option>
-        <option value="emom" ${workout?.type === 'emom' ? 'selected' : ''}>EMOM</option>
-        <option value="amrap" ${workout?.type === 'amrap' ? 'selected' : ''}>AMRAP</option>
-        <option value="fortime" ${workout?.type === 'fortime' ? 'selected' : ''}>For Time</option>
-        <option value="custom" ${workout?.type === 'custom' ? 'selected' : ''}>Custom</option>
-      </select>
+      <select id="save-type">${renderTypeSelect(workout?.type)}</select>
     </div>
     <div class="form-group">
       <label>Tags (comma separated)</label>
@@ -41,6 +48,13 @@ export function openSaveModal(workout: SavedWorkout | null = null): void {
       <button class="btn btn-primary" onclick="window.timerApp.saveWorkout(${isEdit ? workout.id : 'null'})">${isEdit ? 'Update' : 'Save'}</button>
     </div>
   `
+}
+
+export function openSaveModal(workout: SavedWorkout | null = null): void {
+  const modalContent = $id('modal-content')
+  if (!modalContent) return
+
+  modalContent.innerHTML = renderSaveModalContent(workout)
 
   const modalOverlay = $id('modal-overlay')
   if (modalOverlay) addClass(modalOverlay, 'active')
