@@ -27,9 +27,15 @@ function getPhaseMetronomeSettings(
   phase: Phase,
   baseSettings: MetronomeSettings | undefined
 ): MetronomeSettings | undefined {
-  if (!baseSettings) return undefined
+  // Se fase tem BPM próprio via [xBpm], auto-ativa o metrônomo
   if (phase.metronome) {
-    return { ...baseSettings, bpm: phase.metronome }
+    return {
+      enabled: true,
+      bpm: phase.metronome,
+      duringWork: true,
+      duringRest: true,
+      always: true, // Garante que toca independente do tipo de fase
+    }
   }
   return baseSettings
 }
