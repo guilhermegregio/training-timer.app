@@ -20,7 +20,8 @@
     "vite": "^6.0.6",
     "vite-plugin-pwa": "^0.21.1",
     "vitest": "^2.1.8",
-    "workbox-window": "^7.3.0"
+    "workbox-window": "^7.3.0",
+    "wrangler": "^4.61.1"
   },
   "keywords": [
     "workout",
