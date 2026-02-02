@@ -237,7 +237,12 @@
           <h3>About</h3>
           <div class="setting-row">
             <div class="setting-label">Version</div>
-            <div class="setting-desc">2.0.0</div>
+            <div class="setting-desc" id="app-version">--</div>
+          </div>
+          <div class="setting-row" id="update-row" style="display: none">
+            <button class="btn btn-accent" onclick="window.updateApp()">
+              Update Available - Tap to Refresh
+            </button>
           </div>
           <div class="setting-row" id="install-row" style="display: none">
             <button class="btn btn-primary" onclick="window.installApp()">Install App</button>

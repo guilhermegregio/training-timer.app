@@ -1,4 +1,5 @@
 import './styles/main.css'
+import { registerSW } from 'virtual:pwa-register'
 
 import { wakeLockManager } from './managers'
 import {
@@ -125,6 +126,33 @@ document.addEventListener('visibilitychange', async () => {
     wakeLockManager.acquire()
   }
 })
+
+// PWA Version and Update
+const versionEl = $id('app-version')
+if (versionEl) {
+  versionEl.textContent = __APP_VERSION__
+}
+
+function showUpdateButton() {
+  const updateRow = $id('update-row')
+  if (updateRow) {
+    updateRow.style.display = 'flex'
+  }
+}
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    showUpdateButton()
+  },
+  onOfflineReady() {
+    console.log('PWA ready for offline use')
+  },
+})
+
+// Update app function for the button
+;(window as Window & { updateApp?: () => void }).updateApp = () => {
+  updateSW(true)
+}
 
 // PWA Install
 let deferredPrompt: BeforeInstallPromptEvent | null = null

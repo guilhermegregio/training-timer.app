@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
+import pkg from './package.json'
 
 export default defineConfig({
   root: 'src',
@@ -10,6 +11,9 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   build: {
     target: 'ES2020',
     outDir: '../dist',
@@ -18,7 +22,7 @@ export default defineConfig({
   },
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['icons/icon.svg'],
       manifest: {
         name: 'Workout Timer',

@@ -217,6 +217,11 @@ textarea {
   color: white;
 }
 
+.btn-accent {
+  background: var(--accent-orange);
+  color: var(--bg-primary);
+}
+
 .btn-block {
   width: 100%;
 }

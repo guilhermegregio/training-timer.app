@@ -1,10 +1,11 @@
 {
-  "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
-  },
   "permissions": {
     "allow": [
-      "Bash(eza:*)"
+      "Bash(eza:*)",
+      "Bash(npm run build:*)"
     ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
   }
 }
