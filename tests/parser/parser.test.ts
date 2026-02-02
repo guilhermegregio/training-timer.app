@@ -188,7 +188,7 @@ amrap 10min
   })
 
   describe('wait phase', () => {
-    it('parses wait keyword', () => {
+    it('parses wait keyword with infinite duration', () => {
       const result = parseCustomWorkout(`
 30s work
 wait
@@ -196,7 +196,8 @@ wait
 `)
       expect(result.phases).toHaveLength(3)
       expect(result.phases[1]?.type).toBe('wait')
-      expect(result.phases[1]?.duration).toBe(0)
+      expect(result.phases[1]?.duration).toBe(Number.POSITIVE_INFINITY)
+      expect(result.phases[1]?.isWait).toBe(true)
     })
 
     it('creates wait block', () => {
@@ -213,6 +214,97 @@ wait
 wait
 `)
       expect(result.phases[0]?.customLabel).toBe('Ready for next')
+      expect(result.phases[0]?.isWait).toBe(true)
+    })
+
+    it('parses wait work as work phase with isWait', () => {
+      const result = parseCustomWorkout(`
+wait work
+`)
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.type).toBe('work')
+      expect(result.phases[0]?.duration).toBe(Number.POSITIVE_INFINITY)
+      expect(result.phases[0]?.isWait).toBe(true)
+    })
+
+    it('parses wait rest as rest phase with isWait', () => {
+      const result = parseCustomWorkout(`
+wait rest
+`)
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.type).toBe('rest')
+      expect(result.phases[0]?.duration).toBe(Number.POSITIVE_INFINITY)
+      expect(result.phases[0]?.isWait).toBe(true)
+    })
+
+    it('wait inherits warmup type when in warmup block', () => {
+      const result = parseCustomWorkout(`
+warmup
+wait
+`)
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.type).toBe('warmup')
+      expect(result.phases[0]?.isWait).toBe(true)
+    })
+
+    it('wait inherits cooldown type when in cooldown block', () => {
+      const result = parseCustomWorkout(`
+cooldown
+wait
+`)
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.type).toBe('cooldown')
+      expect(result.phases[0]?.isWait).toBe(true)
+    })
+
+    it('wait work inside repeat block', () => {
+      const result = parseCustomWorkout(`
+8x
+wait work
+60s rest
+`)
+      expect(result.phases).toHaveLength(16)
+      for (let i = 0; i < 8; i++) {
+        expect(result.phases[i * 2]).toMatchObject({
+          type: 'work',
+          duration: Number.POSITIVE_INFINITY,
+          isWait: true,
+        })
+        expect(result.phases[i * 2 + 1]).toMatchObject({
+          type: 'rest',
+          duration: 60,
+        })
+        expect(result.phases[i * 2 + 1]?.isWait).toBeUndefined()
+      }
+    })
+
+    it('complex strength workout with wait work and fixed rest', () => {
+      const result = parseCustomWorkout(`
+warmup
+wait
+
+8x
+wait work
+60s rest
+`)
+      // 1 warmup wait + 8 * (work wait + rest) = 1 + 16 = 17
+      expect(result.phases).toHaveLength(17)
+      expect(result.phases[0]).toMatchObject({
+        type: 'warmup',
+        duration: Number.POSITIVE_INFINITY,
+        isWait: true,
+      })
+      // First work phase
+      expect(result.phases[1]).toMatchObject({
+        type: 'work',
+        duration: Number.POSITIVE_INFINITY,
+        isWait: true,
+      })
+      // First rest phase
+      expect(result.phases[2]).toMatchObject({
+        type: 'rest',
+        duration: 60,
+      })
     })
   })
 

@@ -456,8 +456,12 @@ function renderBlockPreview(blocks: WorkoutBlock[]): string {
           )
           .join('') ?? ''
 
+      // Show ∞ for wait blocks, otherwise show the total duration
+      const hasWaitPhases = block.phases.some((p) => p.isWait)
       const durationStr =
-        block.type === 'wait' ? '' : `<span class="preview-block-duration">${formatTime(block.totalDuration)}</span>`
+        block.type === 'wait' || hasWaitPhases
+          ? '<span class="preview-block-duration">∞</span>'
+          : `<span class="preview-block-duration">${formatTime(block.totalDuration)}</span>`
 
       const repsStr = block.repetitions && block.repetitions > 1 ? `<span class="preview-block-reps">${block.repetitions}x</span>` : ''
 

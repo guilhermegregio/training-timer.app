@@ -149,18 +149,42 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
     const line = cleanedLine
     const lineLower = line.toLowerCase()
 
-    // Parse wait
-    if (lineLower === 'wait') {
-      closeRepeat()
-      flushCurrentBlock()
-      const phase: Phase = {
-        type: 'wait',
-        duration: 0,
-        customLabel: currentCustomLabel ?? undefined,
+    // Parse wait (standalone, wait work, wait rest)
+    if (lineLower === 'wait' || lineLower.startsWith('wait ')) {
+      // Determine the effective phase type for the wait
+      let waitPhaseType: PhaseType = 'wait'
+
+      if (lineLower === 'wait work') {
+        waitPhaseType = 'work'
+      } else if (lineLower === 'wait rest') {
+        waitPhaseType = 'rest'
+      } else if (lineLower === 'wait') {
+        // Inherit from current block type if inside warmup/cooldown
+        if (currentBlockType === 'warmup') waitPhaseType = 'warmup'
+        else if (currentBlockType === 'cooldown') waitPhaseType = 'cooldown'
       }
-      phases.push(phase)
-      blocks.push(createBlock('wait', [phase], currentCustomLabel ?? undefined))
-      currentCustomLabel = null
+
+      const phase: Phase = {
+        type: waitPhaseType,
+        duration: Number.POSITIVE_INFINITY,
+        isWait: true,
+        customLabel: currentCustomLabel ?? undefined,
+        metronome: inRepeat ? repeatMetronome ?? undefined : currentMetronome ?? undefined,
+      }
+
+      if (inRepeat) {
+        repeatPhases.push(phase)
+      } else {
+        flushCurrentBlock()
+        if (currentExercises.length > 0) {
+          phase.exercises = [...currentExercises]
+        }
+        phases.push(phase)
+        blocks.push(createBlock('wait', [phase], currentCustomLabel ?? undefined, undefined, currentExercises.length > 0 ? currentExercises : undefined, currentMetronome ?? undefined))
+        currentExercises = []
+        currentCustomLabel = null
+        currentMetronome = null
+      }
       continue
     }
 

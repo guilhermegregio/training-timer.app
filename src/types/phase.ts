@@ -25,6 +25,7 @@ export interface Phase {
   round?: number
   exercises?: Exercise[]
   metronome?: number
+  isWait?: boolean
 }
 
 export const PHASE_COLORS: Record<PhaseType, string> = {

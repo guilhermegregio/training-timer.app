@@ -102,10 +102,11 @@ function updateTimerControls(): void {
   const type = timerState.type
   const phase = timerState.phases[timerState.currentPhaseIndex]
 
-  // Handle wait phase
-  if (phase?.type === 'wait') {
+  // Handle wait phase (isWait indicates a phase that counts up without time limit)
+  if (phase?.isWait) {
     controls.innerHTML = `
       <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
+      <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">Pause</button>
       <button class="btn btn-done btn-primary" onclick="window.timerApp.advanceFromWait()">DONE</button>
     `
     return
@@ -174,8 +175,9 @@ function runTimer(): void {
     }
 
     // Wait phases don't auto-complete - they need user interaction
-    if (phase.type === 'wait') {
+    if (phase.isWait) {
       updateTimerDisplay()
+      updateTimerControls()
       return
     }
 
@@ -274,7 +276,13 @@ function updateTimerDisplay(): void {
   }
 
   // Phase label and color
-  const phaseLabel = phase.type === 'wait' ? 'DONE?' : phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+  let phaseLabel: string
+  if (phase.isWait) {
+    // Show the original type + indicator that it's a wait (tap DONE)
+    phaseLabel = phase.type === 'wait' ? 'DONE?' : phase.type.toUpperCase() + '!'
+  } else {
+    phaseLabel = phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+  }
   if (phaseEl) {
     phaseEl.textContent = phaseLabel
     phaseEl.style.color = phaseColor
@@ -283,11 +291,12 @@ function updateTimerDisplay(): void {
   // Time display
   const settings = settingsManager.get()
   if (
+    phase.isWait ||
     timerState.type === 'stopwatch' ||
     (timerState.type === 'amrap' && phase.type === 'work') ||
     (timerState.type === 'fortime' && phase.type === 'work' && phase.duration === Number.POSITIVE_INFINITY)
   ) {
-    // Count up
+    // Count up (stopwatch style)
     const elapsed = timerState.currentPhaseTime
     if (timeEl) {
       if (settings.millis && timerState.type === 'stopwatch') {
@@ -320,8 +329,9 @@ function updateTimerDisplay(): void {
   // Next phase
   const nextPhaseData = timerState.phases[timerState.currentPhaseIndex + 1]
   if (nextEl) {
-    if (nextPhaseData && phase.duration !== Number.POSITIVE_INFINITY) {
-      nextEl.textContent = `Next: ${nextPhaseData.type} ${formatTime(nextPhaseData.duration)}`
+    if (nextPhaseData && !phase.isWait) {
+      const nextDuration = nextPhaseData.isWait ? '∞' : formatTime(nextPhaseData.duration)
+      nextEl.textContent = `Next: ${nextPhaseData.type} ${nextDuration}`
     } else {
       nextEl.textContent = ''
     }
