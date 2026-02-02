@@ -374,17 +374,24 @@ fortime 10min
       expect(ex?.pse).toBe(8)
     })
 
-    it('parses multiple exercises', () => {
+    it('parses multiple exercises and expands to individual phases', () => {
       const result = parseCustomWorkout(`
 amrap 10min
 - air squat (20x)
 - pull up (10x)
 - push ups (15x)
 `)
-      expect(result.phases[0]?.exercises).toHaveLength(3)
+      // With exercise stepping, multiple exercises expand into individual wait phases
+      expect(result.phases).toHaveLength(3)
       expect(result.phases[0]?.exercises?.[0]?.name).toBe('air squat')
-      expect(result.phases[0]?.exercises?.[1]?.name).toBe('pull up')
-      expect(result.phases[0]?.exercises?.[2]?.name).toBe('push ups')
+      expect(result.phases[0]?.exerciseIndex).toBe(1)
+      expect(result.phases[0]?.exerciseCount).toBe(3)
+      expect(result.phases[0]?.loopStart).toBe(true)
+      expect(result.phases[1]?.exercises?.[0]?.name).toBe('pull up')
+      expect(result.phases[1]?.exerciseIndex).toBe(2)
+      expect(result.phases[2]?.exercises?.[0]?.name).toBe('push ups')
+      expect(result.phases[2]?.exerciseIndex).toBe(3)
+      expect(result.phases[2]?.loopEnd).toBe(true)
     })
 
     it('exercises show in blocks', () => {
@@ -394,6 +401,25 @@ fortime 10min
 `)
       expect(result.blocks[0]?.exercises).toHaveLength(1)
       expect(result.blocks[0]?.exercises?.[0]?.name).toBe('deadlift')
+    })
+
+    it('fortime with multiple exercises expands to individual phases', () => {
+      const result = parseCustomWorkout(`
+for time 10min
+- barbell thruster (21x|@95lbs)
+- pull up (21x)
+- barbell thruster (15x|@95lbs)
+- pull up (15x)
+`)
+      expect(result.phases).toHaveLength(4)
+      expect(result.phases[0]?.exerciseIndex).toBe(1)
+      expect(result.phases[0]?.exerciseCount).toBe(4)
+      expect(result.phases[0]?.label).toBe('fortime')
+      expect(result.phases[0]?.timeCap).toBe(600) // 10 minutes
+      expect(result.phases[0]?.isWait).toBe(true)
+      expect(result.phases[0]?.loopStart).toBeFalsy() // ForTime doesn't loop
+      expect(result.phases[3]?.exerciseIndex).toBe(4)
+      expect(result.phases[3]?.loopEnd).toBeFalsy()
     })
   })
 

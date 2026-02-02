@@ -23,7 +23,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icons/icon.svg'],
+      includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png'],
       manifest: {
         name: 'Workout Timer',
         short_name: 'Timer',
@@ -41,10 +41,15 @@ export default defineConfig({
             purpose: 'any',
           },
           {
-            src: 'icons/icon.svg',
+            src: 'icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/icon-512x512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'maskable',
+            type: 'image/png',
+            purpose: 'any maskable',
           },
         ],
         categories: ['fitness', 'health', 'sports'],

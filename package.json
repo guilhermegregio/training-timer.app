@@ -1,6 +1,6 @@
 {
   "name": "training-timer-app",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "PWA workout timer with HIIT, EMOM, AMRAP, For Time, and custom workouts",
   "type": "module",
   "scripts": {
@@ -12,10 +12,12 @@
     "lint": "biome lint ./src",
     "format": "biome format ./src --write",
     "check": "biome check ./src",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "generate-icons": "node scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "sharp": "^0.34.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.6",
     "vite-plugin-pwa": "^0.21.1",
@@ -34,5 +36,8 @@
     "fitness"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "nosleep.js": "^0.12.0"
+  }
 }

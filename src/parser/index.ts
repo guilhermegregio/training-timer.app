@@ -1,6 +1,44 @@
 import type { Phase, PhaseType, Exercise, ParsedWorkout, WorkoutBlock, BlockType } from '@/types'
 import { parseTimeDuration } from '@/utils/format'
 
+function expandExercisePhases(phases: Phase[]): Phase[] {
+  const result: Phase[] = []
+
+  for (const phase of phases) {
+    // Expand work phases with multiple exercises and fortime/amrap label
+    if (
+      phase.type === 'work' &&
+      phase.exercises &&
+      phase.exercises.length > 1 &&
+      (phase.label === 'fortime' || phase.label === 'amrap')
+    ) {
+      const exerciseCount = phase.exercises.length
+      const isAmrap = phase.label === 'amrap'
+
+      phase.exercises.forEach((ex, idx) => {
+        result.push({
+          type: 'work',
+          duration: Number.POSITIVE_INFINITY,
+          isWait: true,
+          label: phase.label,
+          customLabel: phase.customLabel,
+          metronome: phase.metronome,
+          exercises: [ex],
+          exerciseIndex: idx + 1,
+          exerciseCount,
+          loopStart: isAmrap && idx === 0,
+          loopEnd: isAmrap && idx === exerciseCount - 1,
+          timeCap: phase.duration !== Number.POSITIVE_INFINITY ? phase.duration : undefined,
+        })
+      })
+    } else {
+      result.push(phase)
+    }
+  }
+
+  return result
+}
+
 function parseExercise(text: string): Exercise {
   const nameMatch = text.match(/^([^(]+)/)
   const name = nameMatch?.[1]?.trim() ?? text
@@ -445,7 +483,10 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
     return { error: 'No valid phases found', phases: [], blocks: [] }
   }
 
-  return { phases, blocks }
+  // Expand phases with multiple exercises into individual wait phases
+  const expandedPhases = expandExercisePhases(phases)
+
+  return { phases: expandedPhases, blocks }
 }
 
 export { customPresets, intervalPresets } from './presets'

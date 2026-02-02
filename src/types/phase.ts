@@ -26,6 +26,11 @@ export interface Phase {
   exercises?: Exercise[]
   metronome?: number
   isWait?: boolean
+  exerciseIndex?: number // 1-based index (ex: 2 of 6)
+  exerciseCount?: number // Total exercises in this segment
+  loopStart?: boolean // First exercise in AMRAP loop
+  loopEnd?: boolean // Last exercise in AMRAP loop
+  timeCap?: number // Time cap for this segment
 }
 
 export const PHASE_COLORS: Record<PhaseType, string> = {

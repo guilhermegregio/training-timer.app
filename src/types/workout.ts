@@ -112,6 +112,9 @@ export interface TimerState {
   laps: Lap[]
   startTime: number | null
   pausedTime: number
+  globalTimeCap?: number // Time cap total for exercise stepping
+  globalCapStartTime?: number // When the cap started
+  amrapRound?: number // Current AMRAP round
 }
 
 export interface SavedWorkout {
