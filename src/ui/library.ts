@@ -1,9 +1,9 @@
-import { $id, escapeHtml, getInputValue } from '@/utils'
-import { libraryManager, settingsManager, audioManager, wakeLockManager } from '@/managers'
-import type { CustomConfig } from '@/types'
-import { DEFAULT_METRONOME_SETTINGS } from '@/types'
+import { audioManager, libraryManager, settingsManager, wakeLockManager } from '@/managers'
 import { parseCustomWorkout } from '@/parser'
 import { startTimer } from '@/timers'
+import type { CustomConfig } from '@/types'
+import { DEFAULT_METRONOME_SETTINGS } from '@/types'
+import { $id, escapeHtml, getInputValue } from '@/utils'
 import { openSaveModal } from './modals'
 
 export function renderLibrary(): void {

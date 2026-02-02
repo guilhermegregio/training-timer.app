@@ -7,7 +7,10 @@ class AudioManagerClass {
 
   init(): void {
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      this.ctx = new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      )()
     }
   }
 
@@ -21,7 +24,12 @@ class AudioManagerClass {
     return this.ctx
   }
 
-  playTone(freq: number, duration: number, type: OscillatorType = 'sine', useMetronomeVolume = false): void {
+  playTone(
+    freq: number,
+    duration: number,
+    type: OscillatorType = 'sine',
+    useMetronomeVolume = false
+  ): void {
     const settings = settingsManager.get()
     if (!settings.sounds && !useMetronomeVolume) return
     if (!this.ctx) return
@@ -65,7 +73,7 @@ class AudioManagerClass {
   }
 
   playWorkoutFinish(): void {
-    [0, 100, 200, 300, 400].forEach((delay, i) => {
+    ;[0, 100, 200, 300, 400].forEach((delay, i) => {
       setTimeout(() => this.playTone(440 + i * 110, 0.2), delay)
     })
   }

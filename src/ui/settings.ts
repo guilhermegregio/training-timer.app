@@ -1,6 +1,6 @@
-import { $id, setInputValue } from '@/utils'
-import { settingsManager, audioManager, historyManager, libraryManager } from '@/managers'
+import { audioManager, historyManager, libraryManager, settingsManager } from '@/managers'
 import { DEFAULT_SETTINGS } from '@/types'
+import { $id, setInputValue } from '@/utils'
 import { renderLibrary } from './library'
 
 export function initSettingsUI(): void {
@@ -9,7 +9,14 @@ export function initSettingsUI(): void {
 }
 
 export function applySettingsToUI(settings = settingsManager.get()): void {
-  const toggleKeys = ['voice', 'sounds', 'countdown3', 'metronomeDefault', 'wakelock', 'millis'] as const
+  const toggleKeys = [
+    'voice',
+    'sounds',
+    'countdown3',
+    'metronomeDefault',
+    'wakelock',
+    'millis',
+  ] as const
   for (const key of toggleKeys) {
     const el = $id(`setting-${key}`)
     if (el?.classList.contains('toggle')) {
@@ -33,7 +40,9 @@ export function applySettingsToUI(settings = settingsManager.get()): void {
   audioManager.metronomeVolume = settings.metronomeVolume / 100
 }
 
-export function toggleSetting(key: 'voice' | 'sounds' | 'countdown3' | 'metronomeDefault' | 'wakelock' | 'millis'): void {
+export function toggleSetting(
+  key: 'voice' | 'sounds' | 'countdown3' | 'metronomeDefault' | 'wakelock' | 'millis'
+): void {
   settingsManager.toggle(key)
   const el = $id(`setting-${key}`)
   if (el) el.classList.toggle('active', settingsManager.get()[key])

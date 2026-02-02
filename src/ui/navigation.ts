@@ -1,4 +1,4 @@
-import { $id, $$ } from '@/utils'
+import { $$, $id } from '@/utils'
 import { renderLibrary } from './library'
 
 export type TabName = 'timers' | 'library' | 'settings'

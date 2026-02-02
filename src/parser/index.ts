@@ -1,4 +1,4 @@
-import type { Phase, PhaseType, Exercise, ParsedWorkout, WorkoutBlock, BlockType } from '@/types'
+import type { BlockType, Exercise, ParsedWorkout, Phase, PhaseType, WorkoutBlock } from '@/types'
 import { parseTimeDuration } from '@/utils/format'
 
 function expandExercisePhases(phases: Phase[]): Phase[] {
@@ -104,13 +104,16 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
     label?: string,
     repetitions?: number,
     exercises?: Exercise[],
-    metronome?: number,
+    metronome?: number
   ): WorkoutBlock {
     return {
       type,
       label,
       phases: blockPhases,
-      totalDuration: blockPhases.reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0),
+      totalDuration: blockPhases.reduce(
+        (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
+        0
+      ),
       repetitions,
       exercises: exercises?.length ? exercises : undefined,
       metronome,
@@ -147,8 +150,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
           currentCustomLabel ?? repeatLabel ?? undefined,
           repeatCount,
           currentExercises.length > 0 ? currentExercises : undefined,
-          repeatMetronome ?? undefined,
-        ),
+          repeatMetronome ?? undefined
+        )
       )
       currentExercises = []
       currentCustomLabel = null
@@ -207,7 +210,7 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
         duration: Number.POSITIVE_INFINITY,
         isWait: true,
         customLabel: currentCustomLabel ?? undefined,
-        metronome: inRepeat ? repeatMetronome ?? undefined : currentMetronome ?? undefined,
+        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
       }
 
       if (inRepeat) {
@@ -218,7 +221,16 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
           phase.exercises = [...currentExercises]
         }
         phases.push(phase)
-        blocks.push(createBlock('wait', [phase], currentCustomLabel ?? undefined, undefined, currentExercises.length > 0 ? currentExercises : undefined, currentMetronome ?? undefined))
+        blocks.push(
+          createBlock(
+            'wait',
+            [phase],
+            currentCustomLabel ?? undefined,
+            undefined,
+            currentExercises.length > 0 ? currentExercises : undefined,
+            currentMetronome ?? undefined
+          )
+        )
         currentExercises = []
         currentCustomLabel = null
         currentMetronome = null
@@ -277,8 +289,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
             currentCustomLabel ?? 'For Time',
             undefined,
             currentExercises.length > 0 ? currentExercises : undefined,
-            currentMetronome ?? undefined,
-          ),
+            currentMetronome ?? undefined
+          )
         )
         currentExercises = []
         currentCustomLabel = null
@@ -309,8 +321,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
             currentCustomLabel ?? 'AMRAP',
             undefined,
             currentExercises.length > 0 ? currentExercises : undefined,
-            currentMetronome ?? undefined,
-          ),
+            currentMetronome ?? undefined
+          )
         )
         currentExercises = []
         currentCustomLabel = null
@@ -330,7 +342,7 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
       const phase: Phase = {
         type,
         duration,
-        metronome: inRepeat ? repeatMetronome ?? undefined : currentMetronome ?? undefined,
+        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
       }
       if (inRepeat) {
         repeatPhases.push(phase)
@@ -350,8 +362,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
               currentCustomLabel ?? undefined,
               undefined,
               currentExercises.length > 0 ? currentExercises : undefined,
-              currentMetronome ?? undefined,
-            ),
+              currentMetronome ?? undefined
+            )
           )
           currentExercises = []
           currentCustomLabel = null
@@ -373,7 +385,11 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
       if (duration > 0) {
         closeRepeat()
         flushCurrentBlock()
-        const phase: Phase = { type: 'rest', duration, customLabel: currentCustomLabel ?? undefined }
+        const phase: Phase = {
+          type: 'rest',
+          duration,
+          customLabel: currentCustomLabel ?? undefined,
+        }
         phases.push(phase)
         blocks.push(createBlock('rest', [phase], currentCustomLabel ?? undefined))
         currentCustomLabel = null
@@ -417,7 +433,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
 
       const colonMatch = lineLower.match(/^(\d+):(\d+)$/)
       if (colonMatch) {
-        duration = Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
+        duration =
+          Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
       } else if (lineLower.match(/(\d+)\s*(m|min)/)) {
         const numMatch = lineLower.match(/(\d+)/)
         duration = Number.parseInt(numMatch?.[1] ?? '0', 10) * 60
@@ -435,7 +452,7 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
       const phase: Phase = {
         type: phaseType,
         duration,
-        metronome: inRepeat ? repeatMetronome ?? undefined : currentMetronome ?? undefined,
+        metronome: inRepeat ? (repeatMetronome ?? undefined) : (currentMetronome ?? undefined),
       }
 
       if (inRepeat) {
@@ -456,8 +473,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
               currentCustomLabel ?? undefined,
               undefined,
               undefined,
-              currentMetronome ?? undefined,
-            ),
+              currentMetronome ?? undefined
+            )
           )
           currentExercises = []
           currentCustomLabel = null

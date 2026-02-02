@@ -1,9 +1,15 @@
-import type { TimerConfig, TimerState, TimerType, Phase, MetronomeSettings } from '@/types'
+import {
+  audioManager,
+  historyManager,
+  settingsManager,
+  speechManager,
+  wakeLockManager,
+} from '@/managers'
+import type { MetronomeSettings, Phase, TimerConfig, TimerState, TimerType } from '@/types'
 import { PHASE_COLORS } from '@/types'
-import { audioManager, speechManager, wakeLockManager, historyManager, settingsManager } from '@/managers'
-import { formatTime, formatTimeMillis, $id, addClass, removeClass } from '@/utils'
+import { $id, addClass, formatTime, formatTimeMillis, removeClass } from '@/utils'
 import { buildPhases } from './builder'
-import { startMetronomeForPhase, stopMetronome, setMetronomePaused } from './metronome'
+import { setMetronomePaused, startMetronomeForPhase, stopMetronome } from './metronome'
 
 function formatExerciseDisplay(phase: Phase): string {
   if (!phase.exercises?.length) return ''
@@ -17,7 +23,10 @@ function formatExerciseDisplay(phase: Phase): string {
   return text
 }
 
-function getPhaseMetronomeSettings(phase: Phase, baseSettings: MetronomeSettings | undefined): MetronomeSettings | undefined {
+function getPhaseMetronomeSettings(
+  phase: Phase,
+  baseSettings: MetronomeSettings | undefined
+): MetronomeSettings | undefined {
   if (!baseSettings) return undefined
   if (phase.metronome) {
     return { ...baseSettings, bpm: phase.metronome }
@@ -333,7 +342,9 @@ function updateTimerDisplay(): void {
     phase.isWait ||
     timerState.type === 'stopwatch' ||
     (timerState.type === 'amrap' && phase.type === 'work') ||
-    (timerState.type === 'fortime' && phase.type === 'work' && phase.duration === Number.POSITIVE_INFINITY)
+    (timerState.type === 'fortime' &&
+      phase.type === 'work' &&
+      phase.duration === Number.POSITIVE_INFINITY)
   ) {
     // Count up (stopwatch style)
     const elapsed = timerState.currentPhaseTime
@@ -449,7 +460,8 @@ export function skipPhase(): void {
 
 export function addLap(): void {
   const elapsed = timerState.currentPhaseTime
-  const lastLap = timerState.laps.length > 0 ? timerState.laps[timerState.laps.length - 1]?.total ?? 0 : 0
+  const lastLap =
+    timerState.laps.length > 0 ? (timerState.laps[timerState.laps.length - 1]?.total ?? 0) : 0
   timerState.laps.push({
     lap: timerState.laps.length + 1,
     split: elapsed - lastLap,
@@ -555,7 +567,10 @@ function completeWorkout(): void {
     historyManager.add({
       type: timerState.type as TimerType,
       duration: Math.floor(timerState.totalElapsed),
-      workTime: workPhases.reduce((sum, p) => sum + Math.min(p.duration, timerState.totalElapsed), 0),
+      workTime: workPhases.reduce(
+        (sum, p) => sum + Math.min(p.duration, timerState.totalElapsed),
+        0
+      ),
       rounds: timerState.rounds || workPhases.length,
       config: lastConfig,
     })

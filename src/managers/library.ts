@@ -1,4 +1,4 @@
-import type { SavedWorkout, TimerType, MetronomeSettings } from '@/types'
+import type { MetronomeSettings, SavedWorkout, TimerType } from '@/types'
 
 const STORAGE_KEY = 'workout_library'
 

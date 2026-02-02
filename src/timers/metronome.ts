@@ -1,7 +1,7 @@
-import type { Phase, MetronomeSettings } from '@/types'
 import { audioManager } from '@/managers'
+import type { MetronomeSettings, Phase } from '@/types'
 import { $id, addClass, removeClass } from '@/utils'
-import { METRONOME_SCHEDULE_AHEAD, METRONOME_LOOKAHEAD } from './types'
+import { METRONOME_LOOKAHEAD, METRONOME_SCHEDULE_AHEAD } from './types'
 
 let metronomeInterval: number | null = null
 let metronomeNextNoteTime = 0
@@ -12,7 +12,11 @@ export function setMetronomePaused(isPaused: boolean): void {
   currentIsPaused = isPaused
 }
 
-export function startMetronomeForPhase(phase: Phase, settings: MetronomeSettings | undefined, isPaused: boolean): void {
+export function startMetronomeForPhase(
+  phase: Phase,
+  settings: MetronomeSettings | undefined,
+  isPaused: boolean
+): void {
   stopMetronome()
   currentIsPaused = isPaused
 

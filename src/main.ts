@@ -2,47 +2,42 @@ import './styles/main.css'
 import { registerSW } from 'virtual:pwa-register'
 
 import { wakeLockManager } from './managers'
+import { applyCustomPreset, setBpm, toggleMetroEnabled, updateBpmSlider } from './timers/configs'
 import {
-  toggleMetroEnabled,
-  setBpm,
-  updateBpmSlider,
-  applyCustomPreset,
-} from './timers/configs'
-import {
-  togglePause,
-  skipPhase,
   addLap,
   addRound,
-  finishForTime,
   advanceFromWait,
-  stopTimer,
   backToConfig,
-  closeComplete,
   backToConfigFromComplete,
-  restartWorkout,
+  closeComplete,
+  finishForTime,
   getLastConfig,
+  restartWorkout,
+  skipPhase,
+  stopTimer,
+  togglePause,
 } from './timers/runner'
-import { switchTab } from './ui/navigation'
-import { openSaveModal, closeModal, saveWorkout } from './ui/modals'
 import {
+  deleteWorkout,
+  editWorkout,
+  playWorkout,
   renderLibrary,
   toggleFavorite,
-  playWorkout,
-  editWorkout,
-  deleteWorkout,
 } from './ui/library'
+import { closeModal, openSaveModal, saveWorkout } from './ui/modals'
+import { switchTab } from './ui/navigation'
+import { applyPreset, closeConfig, openTimer, startTimerFromConfig } from './ui/screens'
 import {
+  clearAllData,
+  exportData,
+  handleImport,
+  importData,
   initSettingsUI,
   toggleSetting,
   updateAlertVolume,
   updateMetronomeVolume,
   updateBpm as updateSettingsBpm,
-  exportData,
-  importData,
-  handleImport,
-  clearAllData,
 } from './ui/settings'
-import { openTimer, closeConfig, startTimerFromConfig, applyPreset } from './ui/screens'
 import { $id } from './utils'
 
 // Expose functions to window for onclick handlers

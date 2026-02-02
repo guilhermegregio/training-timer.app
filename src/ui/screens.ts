@@ -1,7 +1,7 @@
-import { $id, $$, addClass, removeClass } from '@/utils'
-import { timerConfigs, initMetroSettings } from '@/timers/configs'
-import { startTimer } from '@/timers/runner'
 import { intervalPresets } from '@/parser'
+import { initMetroSettings, timerConfigs } from '@/timers/configs'
+import { startTimer } from '@/timers/runner'
+import { $$, $id, addClass, removeClass } from '@/utils'
 
 let currentTimerType: string | null = null
 

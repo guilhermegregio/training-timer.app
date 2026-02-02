@@ -15,7 +15,9 @@ export function parseTimeDuration(str: string): number {
   // Format: "1:30" -> 90 seconds
   const colonMatch = str.match(/(\d+):(\d+)/)
   if (colonMatch) {
-    return Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
+    return (
+      Number.parseInt(colonMatch[1] ?? '0', 10) * 60 + Number.parseInt(colonMatch[2] ?? '0', 10)
+    )
   }
 
   // Format: "1min", "2m", "1 min" -> seconds

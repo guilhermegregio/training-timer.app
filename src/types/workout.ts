@@ -1,5 +1,5 @@
+import type { Exercise, Phase } from './phase'
 import type { MetronomeSettings } from './settings'
-import type { Phase, Exercise } from './phase'
 
 export type TimerType =
   | 'stopwatch'

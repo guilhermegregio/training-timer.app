@@ -1,6 +1,6 @@
-import { $id, escapeHtml, getInputValue, addClass, removeClass } from '@/utils'
 import { libraryManager } from '@/managers'
 import type { SavedWorkout, TimerType } from '@/types'
+import { $id, addClass, escapeHtml, getInputValue, removeClass } from '@/utils'
 import { renderLibrary } from './library'
 
 export function openSaveModal(workout: SavedWorkout | null = null): void {

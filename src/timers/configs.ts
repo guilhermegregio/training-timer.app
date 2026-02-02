@@ -1,8 +1,8 @@
-import type { TimerConfig, MetronomeSettings, WorkoutBlock, Exercise } from '@/types'
-import type { TimerDefinition } from './types'
-import { formatTime, getInputNumber, $id } from '@/utils'
 import { settingsManager } from '@/managers'
-import { parseCustomWorkout, customPresets } from '@/parser'
+import { customPresets, parseCustomWorkout } from '@/parser'
+import type { Exercise, MetronomeSettings, TimerConfig, WorkoutBlock } from '@/types'
+import { $id, formatTime, getInputNumber } from '@/utils'
+import type { TimerDefinition } from './types'
 
 let currentMetroSettings: MetronomeSettings = {
   enabled: false,
@@ -148,7 +148,7 @@ export const timerConfigs: Record<string, TimerDefinition> = {
       duration: getInputNumber('cd-minutes', 0) * 60 + getInputNumber('cd-seconds', 0),
       metronome: getMetroSettingsFromUI(),
     }),
-    validate: function() {
+    validate: function () {
       const cfg = this.getConfig() as { duration: number }
       return cfg.duration > 0
     },
@@ -199,11 +199,11 @@ export const timerConfigs: Record<string, TimerDefinition> = {
       cooldown: getInputNumber('int-cooldown', 0),
       metronome: getMetroSettingsFromUI(),
     }),
-    validate: function() {
+    validate: function () {
       const cfg = this.getConfig() as { work: number; rounds: number }
       return cfg.work > 0 && cfg.rounds > 0
     },
-    onUpdate: function() {
+    onUpdate: function () {
       const cfg = this.getConfig() as {
         warmup: number
         work: number
@@ -262,7 +262,7 @@ export const timerConfigs: Record<string, TimerDefinition> = {
       cooldown: getInputNumber('emom-cooldown', 0),
       metronome: getMetroSettingsFromUI(),
     }),
-    validate: function() {
+    validate: function () {
       const cfg = this.getConfig() as { rounds: number }
       return cfg.rounds > 0
     },
@@ -294,7 +294,7 @@ export const timerConfigs: Record<string, TimerDefinition> = {
       cooldown: getInputNumber('amrap-cooldown', 0),
       metronome: getMetroSettingsFromUI(),
     }),
-    validate: function() {
+    validate: function () {
       const cfg = this.getConfig() as { timeCap: number }
       return cfg.timeCap > 0
     },
@@ -362,9 +362,14 @@ cooldown
     getConfig: () => {
       const textEl = $id('custom-text') as HTMLTextAreaElement | null
       const text = textEl?.value ?? ''
-      return { type: 'custom', text, parsed: parseCustomWorkout(text), metronome: getMetroSettingsFromUI() }
+      return {
+        type: 'custom',
+        text,
+        parsed: parseCustomWorkout(text),
+        metronome: getMetroSettingsFromUI(),
+      }
     },
-    validate: function() {
+    validate: function () {
       const cfg = this.getConfig() as TimerConfig & { parsed: { phases: unknown[] } }
       return cfg.parsed?.phases?.length > 0
     },
@@ -380,7 +385,10 @@ cooldown
         if (previewEl) previewEl.innerHTML = ''
       } else if (result.phases?.length > 0) {
         if (errorEl) errorEl.textContent = ''
-        const total = result.phases.reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0)
+        const total = result.phases.reduce(
+          (sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration),
+          0
+        )
         const workTime = result.phases
           .filter((p) => p.type === 'work')
           .reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0)
@@ -452,7 +460,7 @@ function renderBlockPreview(blocks: WorkoutBlock[]): string {
           <span class="exercise-name">${ex.name}</span>
           <span class="exercise-meta">${formatExerciseMeta(ex)}</span>
         </div>
-      `,
+      `
           )
           .join('') ?? ''
 
@@ -463,9 +471,14 @@ function renderBlockPreview(blocks: WorkoutBlock[]): string {
           ? '<span class="preview-block-duration">∞</span>'
           : `<span class="preview-block-duration">${formatTime(block.totalDuration)}</span>`
 
-      const repsStr = block.repetitions && block.repetitions > 1 ? `<span class="preview-block-reps">${block.repetitions}x</span>` : ''
+      const repsStr =
+        block.repetitions && block.repetitions > 1
+          ? `<span class="preview-block-reps">${block.repetitions}x</span>`
+          : ''
 
-      const metroStr = block.metronome ? `<span class="preview-block-metro">${block.metronome} BPM</span>` : ''
+      const metroStr = block.metronome
+        ? `<span class="preview-block-metro">${block.metronome} BPM</span>`
+        : ''
 
       return `
       <div class="preview-block preview-block-${block.type}">

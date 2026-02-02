@@ -1,4 +1,4 @@
-import { type Settings, DEFAULT_SETTINGS } from '@/types'
+import { DEFAULT_SETTINGS, type Settings } from '@/types'
 
 const STORAGE_KEY = 'workout_settings'
 

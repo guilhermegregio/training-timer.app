@@ -1,4 +1,4 @@
-import type { Phase, TimerConfig, MetronomeSettings } from '@/types'
+import type { MetronomeSettings, Phase, TimerConfig } from '@/types'
 
 export interface TimerDefinition {
   title: string
