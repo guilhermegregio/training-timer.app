@@ -9,6 +9,7 @@ const PHASE_PHRASES: Record<PhaseType, string> = {
   prepare: 'Get ready',
   countdown: 'Countdown',
   stopwatch: 'Go',
+  wait: 'Ready?',
 }
 
 class SpeechManagerClass {

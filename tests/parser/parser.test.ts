@@ -5,13 +5,13 @@ describe('parseCustomWorkout', () => {
   it('parses simple work phase', () => {
     const result = parseCustomWorkout('30s work')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 30 })
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
   })
 
   it('parses simple rest phase', () => {
     const result = parseCustomWorkout('10s rest')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'rest', duration: 10 })
+    expect(result.phases[0]).toMatchObject({ type: 'rest', duration: 10 })
   })
 
   it('parses warmup block', () => {
@@ -20,7 +20,7 @@ warmup
 60s
 `)
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'warmup', duration: 60 })
+    expect(result.phases[0]).toMatchObject({ type: 'warmup', duration: 60 })
   })
 
   it('parses cooldown block', () => {
@@ -29,28 +29,19 @@ cooldown
 2min
 `)
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'cooldown', duration: 120 })
+    expect(result.phases[0]).toMatchObject({ type: 'cooldown', duration: 120 })
   })
 
   it('parses AMRAP format', () => {
     const result = parseCustomWorkout('amrap 12min')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 720 })
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 720, label: 'amrap' })
   })
 
   it('parses For Time format', () => {
     const result = parseCustomWorkout('fortime 10min')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 600 })
-  })
-
-  it('ignores comments', () => {
-    const result = parseCustomWorkout(`
-# This is a comment
-30s work
-`)
-    expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 30 })
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 600, label: 'fortime' })
   })
 
   it('returns error for empty input', () => {
@@ -64,30 +55,29 @@ cooldown
 3x
 30s work
 `)
-    // Parser should automatically close repeat at end of input
     expect(result.phases).toHaveLength(3)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 30 })
-    expect(result.phases[1]).toEqual({ type: 'work', duration: 30 })
-    expect(result.phases[2]).toEqual({ type: 'work', duration: 30 })
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+    expect(result.phases[1]).toMatchObject({ type: 'work', duration: 30 })
+    expect(result.phases[2]).toMatchObject({ type: 'work', duration: 30 })
   })
 
   it('parses simple time values without explicit type', () => {
     const result = parseCustomWorkout('30s')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]?.type).toBe('work') // Defaults to work
+    expect(result.phases[0]?.type).toBe('work')
     expect(result.phases[0]?.duration).toBe(30)
   })
 
   it('parses minute format', () => {
     const result = parseCustomWorkout('2min work')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'work', duration: 120 })
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 120 })
   })
 
   it('parses standalone rest', () => {
     const result = parseCustomWorkout('1min rest')
     expect(result.phases).toHaveLength(1)
-    expect(result.phases[0]).toEqual({ type: 'rest', duration: 60 })
+    expect(result.phases[0]).toMatchObject({ type: 'rest', duration: 60 })
   })
 
   it('parses multiple phases in sequence', () => {
@@ -104,5 +94,340 @@ cooldown
 `)
     expect(result.phases.length).toBeGreaterThanOrEqual(4)
     expect(result.phases[0]?.type).toBe('warmup')
+  })
+
+  it('parses Tabata with work and rest phases', () => {
+    const result = parseCustomWorkout(`
+8x
+20s work
+10s rest
+`)
+    expect(result.phases).toHaveLength(16)
+    for (let i = 0; i < 8; i++) {
+      expect(result.phases[i * 2]).toMatchObject({ type: 'work', duration: 20 })
+      expect(result.phases[i * 2 + 1]).toMatchObject({ type: 'rest', duration: 10 })
+    }
+  })
+
+  it('parses complex workout with multiple repeat blocks', () => {
+    const result = parseCustomWorkout(`
+warmup
+2min
+
+emom 1
+10x
+60s work
+
+1min rest
+
+emom 2
+5x
+40s work
+20s rest
+
+cooldown
+2min
+`)
+    expect(result.phases).toHaveLength(23)
+    expect(result.phases[0]).toMatchObject({ type: 'warmup', duration: 120 })
+    for (let i = 1; i <= 10; i++) {
+      expect(result.phases[i]).toMatchObject({ type: 'work', duration: 60 })
+    }
+    expect(result.phases[11]).toMatchObject({ type: 'rest', duration: 60 })
+    for (let i = 0; i < 5; i++) {
+      expect(result.phases[12 + i * 2]).toMatchObject({ type: 'work', duration: 40 })
+      expect(result.phases[12 + i * 2 + 1]).toMatchObject({ type: 'rest', duration: 20 })
+    }
+    expect(result.phases[22]).toMatchObject({ type: 'cooldown', duration: 120 })
+  })
+
+  it('parses repeat with explicit end marker', () => {
+    const result = parseCustomWorkout(`
+3x
+30s work
+10s rest
+end
+60s work
+`)
+    expect(result.phases).toHaveLength(7)
+    expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+    expect(result.phases[1]).toMatchObject({ type: 'rest', duration: 10 })
+    expect(result.phases[6]).toMatchObject({ type: 'work', duration: 60 })
+  })
+
+  // NEW FEATURES TESTS
+
+  describe('custom labels', () => {
+    it('parses custom label with # prefix', () => {
+      const result = parseCustomWorkout(`
+# Parte A - Forca
+fortime 10min
+`)
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.customLabel).toBe('Parte A - Forca')
+    })
+
+    it('assigns custom label to following phases', () => {
+      const result = parseCustomWorkout(`
+# Warmup Section
+warmup
+5min
+`)
+      expect(result.phases[0]?.customLabel).toBe('Warmup Section')
+    })
+
+    it('creates blocks with labels', () => {
+      const result = parseCustomWorkout(`
+# Parte A
+amrap 10min
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.label).toBe('Parte A')
+      expect(result.blocks[0]?.type).toBe('amrap')
+    })
+  })
+
+  describe('wait phase', () => {
+    it('parses wait keyword', () => {
+      const result = parseCustomWorkout(`
+30s work
+wait
+30s work
+`)
+      expect(result.phases).toHaveLength(3)
+      expect(result.phases[1]?.type).toBe('wait')
+      expect(result.phases[1]?.duration).toBe(0)
+    })
+
+    it('creates wait block', () => {
+      const result = parseCustomWorkout(`
+wait
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('wait')
+    })
+
+    it('wait with custom label', () => {
+      const result = parseCustomWorkout(`
+# Ready for next
+wait
+`)
+      expect(result.phases[0]?.customLabel).toBe('Ready for next')
+    })
+  })
+
+  describe('exercises', () => {
+    it('parses exercise with name only', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- back squat
+`)
+      expect(result.phases[0]?.exercises).toHaveLength(1)
+      expect(result.phases[0]?.exercises?.[0]?.name).toBe('back squat')
+    })
+
+    it('parses exercise with reps', () => {
+      const result = parseCustomWorkout(`
+amrap 10min
+- air squat (20x)
+`)
+      expect(result.phases[0]?.exercises?.[0]?.reps).toBe(20)
+    })
+
+    it('parses exercise with weight in kg', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- deadlift (@100kg)
+`)
+      expect(result.phases[0]?.exercises?.[0]?.weight).toBe(100)
+      expect(result.phases[0]?.exercises?.[0]?.weightUnit).toBe('kg')
+    })
+
+    it('parses exercise with weight in lbs', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- deadlift (@225lbs)
+`)
+      expect(result.phases[0]?.exercises?.[0]?.weight).toBe(225)
+      expect(result.phases[0]?.exercises?.[0]?.weightUnit).toBe('lbs')
+    })
+
+    it('parses exercise with percentage', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- back squat (80%)
+`)
+      expect(result.phases[0]?.exercises?.[0]?.percentage).toBe('80%')
+    })
+
+    it('parses exercise with PSE', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- back squat (PSE 8)
+`)
+      expect(result.phases[0]?.exercises?.[0]?.pse).toBe(8)
+    })
+
+    it('parses exercise with all metadata', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- back squat (5x|@100kg|80%|PSE 8)
+`)
+      const ex = result.phases[0]?.exercises?.[0]
+      expect(ex?.name).toBe('back squat')
+      expect(ex?.reps).toBe(5)
+      expect(ex?.weight).toBe(100)
+      expect(ex?.weightUnit).toBe('kg')
+      expect(ex?.percentage).toBe('80%')
+      expect(ex?.pse).toBe(8)
+    })
+
+    it('parses multiple exercises', () => {
+      const result = parseCustomWorkout(`
+amrap 10min
+- air squat (20x)
+- pull up (10x)
+- push ups (15x)
+`)
+      expect(result.phases[0]?.exercises).toHaveLength(3)
+      expect(result.phases[0]?.exercises?.[0]?.name).toBe('air squat')
+      expect(result.phases[0]?.exercises?.[1]?.name).toBe('pull up')
+      expect(result.phases[0]?.exercises?.[2]?.name).toBe('push ups')
+    })
+
+    it('exercises show in blocks', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- deadlift (5x|@120kg)
+`)
+      expect(result.blocks[0]?.exercises).toHaveLength(1)
+      expect(result.blocks[0]?.exercises?.[0]?.name).toBe('deadlift')
+    })
+  })
+
+  describe('metronome', () => {
+    it('parses metronome BPM in brackets', () => {
+      const result = parseCustomWorkout(`
+fortime 10min [60bpm]
+`)
+      expect(result.phases[0]?.metronome).toBe(60)
+    })
+
+    it('metronome applies to repeat blocks', () => {
+      const result = parseCustomWorkout(`
+8x [170bpm]
+20s work
+10s rest
+`)
+      expect(result.phases[0]?.metronome).toBe(170)
+      expect(result.phases[1]?.metronome).toBe(170)
+    })
+
+    it('metronome shows in blocks', () => {
+      const result = parseCustomWorkout(`
+tabata 8x [170bpm]
+20s work
+10s rest
+`)
+      expect(result.blocks[0]?.metronome).toBe(170)
+    })
+
+    it('case insensitive BPM parsing', () => {
+      const result = parseCustomWorkout(`
+fortime 10min [60BPM]
+`)
+      expect(result.phases[0]?.metronome).toBe(60)
+    })
+  })
+
+  describe('blocks', () => {
+    it('creates blocks for warmup', () => {
+      const result = parseCustomWorkout(`
+warmup
+5min
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('warmup')
+      expect(result.blocks[0]?.totalDuration).toBe(300)
+    })
+
+    it('creates blocks for cooldown', () => {
+      const result = parseCustomWorkout(`
+cooldown
+5min
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('cooldown')
+    })
+
+    it('creates blocks for fortime', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('fortime')
+    })
+
+    it('creates blocks for amrap', () => {
+      const result = parseCustomWorkout(`
+amrap 12min
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('amrap')
+    })
+
+    it('creates blocks for tabata', () => {
+      const result = parseCustomWorkout(`
+tabata 8x
+20s work
+10s rest
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('tabata')
+      expect(result.blocks[0]?.repetitions).toBe(8)
+    })
+
+    it('creates blocks for rest', () => {
+      const result = parseCustomWorkout(`
+1min rest
+`)
+      expect(result.blocks).toHaveLength(1)
+      expect(result.blocks[0]?.type).toBe('rest')
+    })
+
+    it('complex workout creates multiple blocks', () => {
+      const result = parseCustomWorkout(`
+warmup
+5min
+
+# Parte A
+fortime 10min
+- back squat (5x|@100kg)
+
+wait
+
+# Parte B
+amrap 10min
+- air squat (20x)
+
+cooldown
+5min
+`)
+      expect(result.blocks.length).toBeGreaterThanOrEqual(5)
+      expect(result.blocks[0]?.type).toBe('warmup')
+      expect(result.blocks[1]?.type).toBe('fortime')
+      expect(result.blocks[2]?.type).toBe('wait')
+      expect(result.blocks[3]?.type).toBe('amrap')
+      expect(result.blocks[4]?.type).toBe('cooldown')
+    })
+  })
+
+  describe('ignores comments', () => {
+    it('ignores lines starting with # that look like comments', () => {
+      const result = parseCustomWorkout(`
+30s work
+`)
+      expect(result.phases).toHaveLength(1)
+    })
   })
 })

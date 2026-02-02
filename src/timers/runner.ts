@@ -1,9 +1,29 @@
-import type { TimerConfig, TimerState, TimerType } from '@/types'
+import type { TimerConfig, TimerState, TimerType, Phase, MetronomeSettings } from '@/types'
 import { PHASE_COLORS } from '@/types'
 import { audioManager, speechManager, wakeLockManager, historyManager, settingsManager } from '@/managers'
 import { formatTime, formatTimeMillis, $id, addClass, removeClass } from '@/utils'
 import { buildPhases } from './builder'
 import { startMetronomeForPhase, stopMetronome, setMetronomePaused } from './metronome'
+
+function formatExerciseDisplay(phase: Phase): string {
+  if (!phase.exercises?.length) return ''
+  const ex = phase.exercises[0]
+  if (!ex) return ''
+  let text = ex.name
+  if (ex.reps) text += ` ${ex.reps}x`
+  if (ex.weight) text += ` @${ex.weight}${ex.weightUnit ?? 'kg'}`
+  if (ex.percentage) text += ` ${ex.percentage}`
+  if (ex.pse) text += ` PSE ${ex.pse}`
+  return text
+}
+
+function getPhaseMetronomeSettings(phase: Phase, baseSettings: MetronomeSettings | undefined): MetronomeSettings | undefined {
+  if (!baseSettings) return undefined
+  if (phase.metronome) {
+    return { ...baseSettings, bpm: phase.metronome }
+  }
+  return baseSettings
+}
 
 let timerState: TimerState = {
   type: null,
@@ -80,6 +100,16 @@ function updateTimerControls(): void {
   if (!controls) return
 
   const type = timerState.type
+  const phase = timerState.phases[timerState.currentPhaseIndex]
+
+  // Handle wait phase
+  if (phase?.type === 'wait') {
+    controls.innerHTML = `
+      <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
+      <button class="btn btn-done btn-primary" onclick="window.timerApp.advanceFromWait()">DONE</button>
+    `
+    return
+  }
 
   if (type === 'stopwatch') {
     controls.innerHTML = `
@@ -119,8 +149,9 @@ function runTimer(): void {
     if (firstPhase.type === 'work') audioManager.playWorkStart()
     else if (firstPhase.type === 'rest') audioManager.playRestStart()
 
-    // Start metronome for first phase
-    startMetronomeForPhase(firstPhase, lastConfig?.metronome, isPaused)
+    // Start metronome for first phase (with phase-specific BPM if set)
+    const metroSettings = getPhaseMetronomeSettings(firstPhase, lastConfig?.metronome)
+    startMetronomeForPhase(firstPhase, metroSettings, isPaused)
   }
 
   timerInterval = window.setInterval(() => {
@@ -139,6 +170,12 @@ function runTimer(): void {
     const phase = timerState.phases[timerState.currentPhaseIndex]
     if (!phase) {
       completeWorkout()
+      return
+    }
+
+    // Wait phases don't auto-complete - they need user interaction
+    if (phase.type === 'wait') {
+      updateTimerDisplay()
       return
     }
 
@@ -194,8 +231,9 @@ function nextPhase(): void {
     audioManager.playRoundComplete()
   }
 
-  // Start/stop metronome based on phase
-  startMetronomeForPhase(phase, lastConfig?.metronome, isPaused)
+  // Start/stop metronome based on phase (with phase-specific BPM if set)
+  const metroSettings = getPhaseMetronomeSettings(phase, lastConfig?.metronome)
+  startMetronomeForPhase(phase, metroSettings, isPaused)
 
   updateTimerDisplay()
 }
@@ -209,11 +247,34 @@ function updateTimerDisplay(): void {
   const infoEl = $id('timer-info')
   const nextEl = $id('timer-next')
   const progressEl = $id('timer-progress')
+  const blockLabelEl = $id('timer-block-label')
+  const exerciseEl = $id('timer-exercise')
 
   const phaseColor = PHASE_COLORS[phase.type] || 'var(--text-primary)'
 
+  // Block label display
+  if (blockLabelEl) {
+    if (phase.customLabel || phase.label) {
+      blockLabelEl.textContent = phase.customLabel ?? phase.label?.toUpperCase() ?? ''
+      addClass(blockLabelEl, 'active')
+    } else {
+      removeClass(blockLabelEl, 'active')
+    }
+  }
+
+  // Exercise display
+  if (exerciseEl) {
+    const exerciseText = formatExerciseDisplay(phase)
+    if (exerciseText) {
+      exerciseEl.textContent = exerciseText
+      addClass(exerciseEl, 'active')
+    } else {
+      removeClass(exerciseEl, 'active')
+    }
+  }
+
   // Phase label and color
-  const phaseLabel = phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+  const phaseLabel = phase.type === 'wait' ? 'DONE?' : phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
   if (phaseEl) {
     phaseEl.textContent = phaseLabel
     phaseEl.style.color = phaseColor
@@ -331,6 +392,12 @@ export function addRound(): void {
 
 export function finishForTime(): void {
   completeWorkout()
+}
+
+export function advanceFromWait(): void {
+  audioManager.playRoundComplete()
+  nextPhase()
+  updateTimerControls()
 }
 
 export function stopTimer(): boolean {

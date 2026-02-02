@@ -1,4 +1,4 @@
-import type { TimerConfig, MetronomeSettings } from '@/types'
+import type { TimerConfig, MetronomeSettings, WorkoutBlock, Exercise } from '@/types'
 import type { TimerDefinition } from './types'
 import { formatTime, getInputNumber, $id } from '@/utils'
 import { settingsManager } from '@/managers'
@@ -380,11 +380,12 @@ cooldown
         if (previewEl) previewEl.innerHTML = ''
       } else if (result.phases?.length > 0) {
         if (errorEl) errorEl.textContent = ''
-        const total = result.phases.reduce((sum, p) => sum + p.duration, 0)
+        const total = result.phases.reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0)
         const workTime = result.phases
           .filter((p) => p.type === 'work')
-          .reduce((sum, p) => sum + p.duration, 0)
+          .reduce((sum, p) => sum + (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration), 0)
         const rounds = result.phases.filter((p) => p.type === 'work').length
+        const waitCount = result.phases.filter((p) => p.type === 'wait').length
         if (previewEl) {
           previewEl.innerHTML = `
             <h4>Preview</h4>
@@ -401,7 +402,9 @@ cooldown
                 <div class="preview-stat-value">${rounds}</div>
                 <div class="preview-stat-label">Work Phases</div>
               </div>
+              ${waitCount > 0 ? `<div class="preview-stat"><div class="preview-stat-value">${waitCount}</div><div class="preview-stat-label">Waits</div></div>` : ''}
             </div>
+            ${renderBlockPreview(result.blocks)}
           `
         }
       } else {
@@ -410,6 +413,72 @@ cooldown
       }
     },
   },
+}
+
+function formatExerciseMeta(ex: Exercise): string {
+  const parts: string[] = []
+  if (ex.reps) parts.push(`${ex.reps}x`)
+  if (ex.weight) parts.push(`@${ex.weight}${ex.weightUnit ?? 'kg'}`)
+  if (ex.percentage) parts.push(ex.percentage)
+  if (ex.pse) parts.push(`PSE ${ex.pse}`)
+  return parts.join(' ')
+}
+
+function getBlockTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    warmup: 'WARMUP',
+    cooldown: 'COOLDOWN',
+    fortime: 'FOR TIME',
+    amrap: 'AMRAP',
+    emom: 'EMOM',
+    tabata: 'TABATA',
+    rest: 'REST',
+    wait: 'WAIT',
+    work: 'WORK',
+  }
+  return labels[type] ?? type.toUpperCase()
+}
+
+function renderBlockPreview(blocks: WorkoutBlock[]): string {
+  if (!blocks.length) return ''
+
+  const blockHtml = blocks
+    .map((block) => {
+      const exercises =
+        block.exercises
+          ?.map(
+            (ex) => `
+        <div class="preview-exercise">
+          <span class="exercise-name">${ex.name}</span>
+          <span class="exercise-meta">${formatExerciseMeta(ex)}</span>
+        </div>
+      `,
+          )
+          .join('') ?? ''
+
+      const durationStr =
+        block.type === 'wait' ? '' : `<span class="preview-block-duration">${formatTime(block.totalDuration)}</span>`
+
+      const repsStr = block.repetitions && block.repetitions > 1 ? `<span class="preview-block-reps">${block.repetitions}x</span>` : ''
+
+      const metroStr = block.metronome ? `<span class="preview-block-metro">${block.metronome} BPM</span>` : ''
+
+      return `
+      <div class="preview-block preview-block-${block.type}">
+        <div class="preview-block-header">
+          ${block.label ? `<span class="preview-block-label">${block.label}</span>` : ''}
+          <span class="preview-block-type">${getBlockTypeLabel(block.type)}</span>
+          ${repsStr}
+          ${metroStr}
+          ${durationStr}
+        </div>
+        ${exercises ? `<div class="preview-exercises">${exercises}</div>` : ''}
+      </div>
+    `
+    })
+    .join('')
+
+  return `<div class="preview-blocks">${blockHtml}</div>`
 }
 
 export function applyCustomPreset(name: string): void {

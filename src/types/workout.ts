@@ -1,5 +1,5 @@
 import type { MetronomeSettings } from './settings'
-import type { Phase } from './phase'
+import type { Phase, Exercise } from './phase'
 
 export type TimerType =
   | 'stopwatch'
@@ -69,8 +69,30 @@ export type TimerConfig =
   | ForTimeConfig
   | CustomConfig
 
+export type BlockType =
+  | 'warmup'
+  | 'cooldown'
+  | 'fortime'
+  | 'amrap'
+  | 'emom'
+  | 'tabata'
+  | 'rest'
+  | 'wait'
+  | 'work'
+
+export interface WorkoutBlock {
+  type: BlockType
+  label?: string
+  phases: Phase[]
+  totalDuration: number
+  repetitions?: number
+  exercises?: Exercise[]
+  metronome?: number
+}
+
 export interface ParsedWorkout {
   phases: Phase[]
+  blocks: WorkoutBlock[]
   error?: string
 }
 
