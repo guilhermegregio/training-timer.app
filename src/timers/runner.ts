@@ -311,14 +311,14 @@ function updateBlockProgress(phase: Phase): void {
 
   const parts: string[] = []
 
-  // Round dentro do bloco
+  // Round dentro do bloco (sempre mostrar se > 1 round)
   if (phase.blockRound && phase.blockTotalRounds && phase.blockTotalRounds > 1) {
     parts.push(`Round ${phase.blockRound}/${phase.blockTotalRounds}`)
   }
 
-  // Sub-fase (se aplicável)
-  if (phase.blockSubPhase && phase.blockSubPhaseTotal && phase.blockSubPhaseTotal > 1) {
-    parts.push(`Part ${phase.blockSubPhase}/${phase.blockSubPhaseTotal}`)
+  // Sub-fase (mostrar se > 2 sub-fases, para não mostrar work/rest óbvio)
+  if (phase.blockSubPhase && phase.blockSubPhaseTotal && phase.blockSubPhaseTotal > 2) {
+    parts.push(`${phase.blockSubPhase}/${phase.blockSubPhaseTotal}`)
   }
 
   if (parts.length > 0) {

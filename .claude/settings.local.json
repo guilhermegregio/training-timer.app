@@ -13,9 +13,21 @@
       "Bash(pnpm run check:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm build:*)",
-      "Bash(npm run test:run:*)"
+      "Bash(npm run test:run:*)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__evaluate_script"
     ]
   },
+  "enabledMcpjsonServers": [
+    "chrome-devtools"
+  ],
+  "disabledMcpjsonServers": [
+    "supabase"
+  ],
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   }

@@ -142,6 +142,7 @@ interface ParserContext {
   repeatLabel: string | null
   repeatMetronome: number | null
   repeatMetronomeMode: MetronomeMode | null
+  nextBlockId: number
 }
 
 function createContext(): ParserContext {
@@ -159,6 +160,7 @@ function createContext(): ParserContext {
     repeatLabel: null,
     repeatMetronome: null,
     repeatMetronomeMode: null,
+    nextBlockId: 0,
   }
 }
 
@@ -205,9 +207,25 @@ function resetRepeatState(ctx: ParserContext): void {
 
 function expandRepeatPhases(ctx: ParserContext): Phase[] {
   const blockPhases: Phase[] = []
-  for (let r = 0; r < ctx.repeatCount; r++) {
-    for (const p of ctx.repeatPhases) {
-      const phase = { ...p }
+  const phasesPerRound = ctx.repeatPhases.length
+  const totalRounds = ctx.repeatCount
+  const blockLabel = ctx.currentCustomLabel ?? ctx.repeatLabel ?? undefined
+  const blockId = ctx.nextBlockId++
+
+  for (let round = 0; round < ctx.repeatCount; round++) {
+    for (let subPhase = 0; subPhase < phasesPerRound; subPhase++) {
+      const p = ctx.repeatPhases[subPhase]
+      if (!p) continue
+
+      const phase: Phase = {
+        ...p,
+        blockId,
+        blockLabel,
+        blockRound: round + 1,
+        blockTotalRounds: totalRounds,
+        blockSubPhase: subPhase + 1,
+        blockSubPhaseTotal: phasesPerRound,
+      }
       if (ctx.currentExercises.length > 0 && !phase.exercises?.length) {
         phase.exercises = [...ctx.currentExercises]
       }
@@ -644,128 +662,6 @@ function processLine(rawLine: string, ctx: ParserContext): void {
   handleTimeLine(lineLower, ctx)
 }
 
-function getPhaseLabel(phase: Phase): string | undefined {
-  return phase.customLabel ?? phase.label
-}
-
-function isStandaloneRest(phase: Phase): boolean {
-  return phase.type === 'rest' && !phase.customLabel && !phase.label
-}
-
-function countPhasesPerBlock(
-  phases: Phase[]
-): Map<string, { total: number; phasesPerRound: number }> {
-  const blockPhaseCounts = new Map<string, { total: number; phasesPerRound: number }>()
-
-  for (const phase of phases) {
-    if (isStandaloneRest(phase)) continue
-
-    const label = getPhaseLabel(phase) ?? ''
-    const current = blockPhaseCounts.get(label) ?? { total: 0, phasesPerRound: 0 }
-    current.total++
-    blockPhaseCounts.set(label, current)
-  }
-
-  return blockPhaseCounts
-}
-
-function countPhasesUntilRepeat(phases: Phase[], label: string): number {
-  let firstIdx = -1
-  let count = 0
-
-  for (const p of phases) {
-    if (!p || isStandaloneRest(p)) continue
-    if ((getPhaseLabel(p) ?? '') !== label) continue
-
-    if (firstIdx === -1) {
-      firstIdx = phases.indexOf(p)
-      count = 1
-      continue
-    }
-
-    const firstPhase = phases[firstIdx]
-    if (p.type === firstPhase?.type) {
-      return count // Found pattern repeat
-    }
-    count++
-  }
-
-  return count
-}
-
-function detectPhasesPerRound(
-  phases: Phase[],
-  blockPhaseCounts: Map<string, { total: number; phasesPerRound: number }>
-): void {
-  for (const [label, info] of blockPhaseCounts) {
-    info.phasesPerRound = countPhasesUntilRepeat(phases, label)
-  }
-}
-
-interface BlockState {
-  blockId: number
-  blockLabel: string | undefined
-  roundCounter: number
-  subPhaseCounter: number
-  phasesPerRound: number
-}
-
-function assignPhaseMetadata(
-  phase: Phase,
-  state: BlockState,
-  blockPhaseCounts: Map<string, { total: number; phasesPerRound: number }>
-): void {
-  const info = blockPhaseCounts.get(getPhaseLabel(phase) ?? '')
-  const totalPhases = info?.total ?? 1
-  const totalRounds = state.phasesPerRound > 0 ? Math.ceil(totalPhases / state.phasesPerRound) : 1
-
-  phase.blockId = state.blockId
-  phase.blockLabel = getPhaseLabel(phase)
-  phase.blockRound = state.roundCounter
-  phase.blockTotalRounds = totalRounds
-  phase.blockSubPhase = state.subPhaseCounter
-  phase.blockSubPhaseTotal = state.phasesPerRound
-}
-
-function calculateBlockMetadata(phases: Phase[]): Phase[] {
-  if (phases.length === 0) return phases
-
-  const blockPhaseCounts = countPhasesPerBlock(phases)
-  detectPhasesPerRound(phases, blockPhaseCounts)
-
-  const state: BlockState = {
-    blockId: -1,
-    blockLabel: undefined,
-    roundCounter: 0,
-    subPhaseCounter: 0,
-    phasesPerRound: 0,
-  }
-
-  for (const phase of phases) {
-    if (isStandaloneRest(phase)) continue
-
-    const phaseLabel = getPhaseLabel(phase)
-
-    if (phaseLabel !== state.blockLabel) {
-      state.blockId++
-      state.blockLabel = phaseLabel
-      state.roundCounter = 1
-      state.subPhaseCounter = 1
-      state.phasesPerRound = blockPhaseCounts.get(phaseLabel ?? '')?.phasesPerRound ?? 1
-    } else {
-      state.subPhaseCounter++
-      if (state.subPhaseCounter > state.phasesPerRound) {
-        state.subPhaseCounter = 1
-        state.roundCounter++
-      }
-    }
-
-    assignPhaseMetadata(phase, state, blockPhaseCounts)
-  }
-
-  return phases
-}
-
 export function parseCustomWorkout(text: string): ParsedWorkout {
   const ctx = createContext()
   const lines = text
@@ -785,9 +681,8 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
   }
 
   const expandedPhases = expandExercisePhases(ctx.phases)
-  const phasesWithMetadata = calculateBlockMetadata(expandedPhases)
 
-  return { phases: phasesWithMetadata, blocks: ctx.blocks }
+  return { phases: expandedPhases, blocks: ctx.blocks }
 }
 
 export { customPresets, intervalPresets } from './presets'
