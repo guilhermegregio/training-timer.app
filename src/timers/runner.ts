@@ -258,6 +258,10 @@ function runTimer(): void {
 }
 
 function nextPhase(): void {
+  const prevPhase = timerState.phases[timerState.currentPhaseIndex]
+  if (prevPhase) {
+    prevPhase.actualDuration = timerState.currentPhaseTime
+  }
   timerState.currentPhaseIndex++
   timerState.currentPhaseTime = 0
 
@@ -467,7 +471,9 @@ function calculateWorkTime(phase: Phase): number {
   let workTime = 0
   for (let i = 0; i < timerState.currentPhaseIndex; i++) {
     const p = timerState.phases[i]
-    if (p?.type === 'work') workTime += p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration
+    if (p?.type === 'work') {
+      workTime += p.actualDuration ?? (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration)
+    }
   }
   if (phase.type === 'work') workTime += timerState.currentPhaseTime
   return workTime
@@ -554,6 +560,9 @@ export function advanceFromWait(): void {
   audioManager.playRoundComplete()
 
   const currentPhase = timerState.phases[timerState.currentPhaseIndex]
+  if (currentPhase) {
+    currentPhase.actualDuration = timerState.currentPhaseTime
+  }
 
   // AMRAP: last exercise - loop back to first
   if (currentPhase?.loopEnd && timerState.globalTimeCap) {
@@ -622,6 +631,12 @@ export function backToConfig(openTimerFn: (type: string) => void): void {
 }
 
 function completeWorkout(): void {
+  // Save actual duration for current phase before clearing
+  const currentPhase = timerState.phases[timerState.currentPhaseIndex]
+  if (currentPhase && currentPhase.actualDuration == null) {
+    currentPhase.actualDuration = timerState.currentPhaseTime
+  }
+
   if (timerInterval !== null) clearInterval(timerInterval)
   stopMetronome()
   timerInterval = null
@@ -636,9 +651,12 @@ function completeWorkout(): void {
     historyManager.add({
       type: timerState.type as TimerType,
       duration: Math.floor(timerState.totalElapsed),
-      workTime: workPhases.reduce(
-        (sum, p) => sum + Math.min(p.duration, timerState.totalElapsed),
-        0
+      workTime: Math.floor(
+        workPhases.reduce(
+          (sum, p) =>
+            sum + (p.actualDuration ?? (p.duration === Number.POSITIVE_INFINITY ? 0 : p.duration)),
+          0
+        )
       ),
       rounds: timerState.rounds || workPhases.length,
       config: lastConfig,

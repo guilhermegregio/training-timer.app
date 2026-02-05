@@ -42,6 +42,8 @@ export interface Phase {
   blockTotalRounds?: number // Total rounds in the block (6)
   blockSubPhase?: number // Current sub-phase within round (1-4)
   blockSubPhaseTotal?: number // Total sub-phases per round
+
+  actualDuration?: number // Actual time spent in phase (saved on advance)
 }
 
 export const PHASE_COLORS: Record<PhaseType, string> = {
