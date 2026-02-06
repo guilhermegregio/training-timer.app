@@ -124,6 +124,7 @@ export interface SavedWorkout {
   type: TimerType
   tags?: string[]
   textDefinition?: string
+  countdown?: number
   config?: TimerConfig
   metronome?: MetronomeSettings
   createdAt: string

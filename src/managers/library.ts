@@ -8,6 +8,7 @@ interface WorkoutInput {
   type: TimerType
   tags?: string[]
   textDefinition?: string
+  countdown?: number
   metronome?: MetronomeSettings
 }
 

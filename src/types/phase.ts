@@ -44,6 +44,7 @@ export interface Phase {
   blockSubPhaseTotal?: number // Total sub-phases per round
 
   actualDuration?: number // Actual time spent in phase (saved on advance)
+  millis?: boolean // Show milliseconds display for this phase
 }
 
 export const PHASE_COLORS: Record<PhaseType, string> = {

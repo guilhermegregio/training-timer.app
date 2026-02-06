@@ -744,6 +744,14 @@ textarea {
   font-size: 0.9rem;
 }
 
+.lap-best {
+  color: var(--phase-work);
+}
+
+.lap-worst {
+  color: var(--accent-red);
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;

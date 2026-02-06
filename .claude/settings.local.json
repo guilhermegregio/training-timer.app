@@ -20,7 +20,11 @@
       "mcp__chrome-devtools__click",
       "mcp__chrome-devtools__fill",
       "mcp__chrome-devtools__evaluate_script",
-      "Bash(pnpm check:*)"
+      "Bash(pnpm check:*)",
+      "Bash(npx biome check:*)",
+      "Bash(npx vitest:*)",
+      "Bash(pnpm format:*)",
+      "Bash(npx vite build:*)"
     ]
   },
   "enabledMcpjsonServers": [

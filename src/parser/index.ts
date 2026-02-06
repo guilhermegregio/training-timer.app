@@ -126,6 +126,20 @@ function extractMetronome(line: string): {
   return { bpm: null, bpmMode: null, cleanedLine: line }
 }
 
+function extractMillisConfig(line: string): {
+  millis: boolean | null
+  cleanedLine: string
+} {
+  const match = line.match(/\bms=(on|off)\b/i)
+  if (match?.[1]) {
+    return {
+      millis: match[1].toLowerCase() === 'on',
+      cleanedLine: line.replace(match[0], '').trim(),
+    }
+  }
+  return { millis: null, cleanedLine: line }
+}
+
 interface ParserContext {
   phases: Phase[]
   blocks: WorkoutBlock[]
@@ -350,13 +364,95 @@ function handleExerciseLine(line: string, ctx: ParserContext): boolean {
   return true
 }
 
+function handleStopwatchLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null
+): boolean {
+  if (lineLower !== 'stopwatch') return false
+
+  const phase: Phase = {
+    type: 'stopwatch',
+    duration: Number.POSITIVE_INFINITY,
+    isWait: true,
+    millis: millis ?? undefined,
+    customLabel: ctx.currentCustomLabel ?? undefined,
+    metronome: getContextMetronome(ctx),
+    metronomeMode: getContextMetronomeMode(ctx),
+  }
+
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push(phase)
+  } else {
+    flushCurrentBlock(ctx)
+    if (ctx.currentExercises.length > 0) phase.exercises = [...ctx.currentExercises]
+    ctx.phases.push(phase)
+    ctx.blocks.push(
+      createBlock(
+        'work',
+        [phase],
+        ctx.currentCustomLabel ?? undefined,
+        undefined,
+        ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+        ctx.currentMetronome ?? undefined
+      )
+    )
+    resetContextAfterBlock(ctx)
+  }
+  return true
+}
+
+function handleCountdownLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null
+): boolean {
+  if (!lineLower.startsWith('countdown ')) return false
+
+  const duration = parseTimeDuration(lineLower)
+  if (duration <= 0) return false
+
+  const phase: Phase = {
+    type: 'countdown',
+    duration,
+    millis: millis ?? undefined,
+    customLabel: ctx.currentCustomLabel ?? undefined,
+    metronome: getContextMetronome(ctx),
+    metronomeMode: getContextMetronomeMode(ctx),
+  }
+
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push(phase)
+  } else {
+    flushCurrentBlock(ctx)
+    if (ctx.currentExercises.length > 0) phase.exercises = [...ctx.currentExercises]
+    ctx.phases.push(phase)
+    ctx.blocks.push(
+      createBlock(
+        'work',
+        [phase],
+        ctx.currentCustomLabel ?? undefined,
+        undefined,
+        ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
+        ctx.currentMetronome ?? undefined
+      )
+    )
+    resetContextAfterBlock(ctx)
+  }
+  return true
+}
+
 function handleEmomLabel(lineLower: string, ctx: ParserContext): boolean {
   if (!lineLower.match(/^emom(\s+\d+)?$/i)) return false
   ctx.currentBlockType = 'emom'
   return true
 }
 
-function handleForTimeLine(lineLower: string, ctx: ParserContext): boolean {
+function handleForTimeLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null = null
+): boolean {
   if (!lineLower.match(/^for\s*time\s+\d+/i)) return false
 
   closeRepeat(ctx)
@@ -368,6 +464,7 @@ function handleForTimeLine(lineLower: string, ctx: ParserContext): boolean {
     type: 'work',
     duration,
     label: 'fortime',
+    millis: millis ?? undefined,
     customLabel: ctx.currentCustomLabel ?? undefined,
     metronome: ctx.currentMetronome ?? undefined,
     exercises: ctx.currentExercises.length > 0 ? [...ctx.currentExercises] : undefined,
@@ -389,7 +486,11 @@ function handleForTimeLine(lineLower: string, ctx: ParserContext): boolean {
   return true
 }
 
-function handleAmrapLine(lineLower: string, ctx: ParserContext): boolean {
+function handleAmrapLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null = null
+): boolean {
   if (!lineLower.match(/^amrap\s+\d+/i)) return false
 
   closeRepeat(ctx)
@@ -401,6 +502,7 @@ function handleAmrapLine(lineLower: string, ctx: ParserContext): boolean {
     type: 'work',
     duration,
     label: 'amrap',
+    millis: millis ?? undefined,
     customLabel: ctx.currentCustomLabel ?? undefined,
     metronome: ctx.currentMetronome ?? undefined,
     exercises: ctx.currentExercises.length > 0 ? [...ctx.currentExercises] : undefined,
@@ -439,7 +541,11 @@ function resetContextAfterBlock(ctx: ParserContext): void {
   ctx.currentMetronomeMode = null
 }
 
-function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
+function handleTimeTypeLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null = null
+): boolean {
   const match = lineLower.match(/^(\d+)\s*(s|sec|m|min)?\s*(work|rest)$/i)
   if (!match) return false
 
@@ -451,6 +557,7 @@ function handleTimeTypeLine(lineLower: string, ctx: ParserContext): boolean {
   const phase: Phase = {
     type,
     duration,
+    millis: millis ?? undefined,
     metronome: getContextMetronome(ctx),
     metronomeMode: getContextMetronomeMode(ctx),
   }
@@ -592,7 +699,11 @@ function isTimeLineMatch(lineLower: string): boolean {
   return !!timeMatch || !!lineLower.match(/^\d+\s*(s|m|sec|min)/)
 }
 
-function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
+function handleTimeLine(
+  lineLower: string,
+  ctx: ParserContext,
+  millis: boolean | null = null
+): boolean {
   if (!isTimeLineMatch(lineLower)) return false
 
   const duration = parseTimeFromLine(lineLower)
@@ -601,6 +712,7 @@ function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
   const phase: Phase = {
     type: phaseType,
     duration,
+    millis: millis ?? undefined,
     metronome: getContextMetronome(ctx),
     metronomeMode: getContextMetronomeMode(ctx),
   }
@@ -632,34 +744,45 @@ function handleTimeLine(lineLower: string, ctx: ParserContext): boolean {
   return true
 }
 
+function applyMetronome(ctx: ParserContext, bpm: number, mode: MetronomeMode | null): void {
+  if (ctx.inRepeat) {
+    ctx.repeatMetronome = bpm
+    ctx.repeatMetronomeMode = mode
+  } else {
+    ctx.currentMetronome = bpm
+    ctx.currentMetronomeMode = mode
+  }
+}
+
+function extractLineConfigs(
+  rawLine: string,
+  ctx: ParserContext
+): { line: string; lineLower: string; millis: boolean | null } {
+  const { bpm, bpmMode, cleanedLine: afterMetronome } = extractMetronome(rawLine)
+  if (bpm !== null) applyMetronome(ctx, bpm, bpmMode)
+
+  const { millis, cleanedLine } = extractMillisConfig(afterMetronome)
+  return { line: cleanedLine, lineLower: cleanedLine.toLowerCase(), millis }
+}
+
 function processLine(rawLine: string, ctx: ParserContext): void {
   if (handleCommentLine(rawLine, ctx)) return
   if (handleEmptyLine(rawLine, ctx)) return
 
-  const { bpm: lineBpm, bpmMode: lineBpmMode, cleanedLine } = extractMetronome(rawLine)
-  if (lineBpm !== null) {
-    if (ctx.inRepeat) {
-      ctx.repeatMetronome = lineBpm
-      ctx.repeatMetronomeMode = lineBpmMode
-    } else {
-      ctx.currentMetronome = lineBpm
-      ctx.currentMetronomeMode = lineBpmMode
-    }
-  }
-
-  const line = cleanedLine
-  const lineLower = line.toLowerCase()
+  const { line, lineLower, millis } = extractLineConfigs(rawLine, ctx)
 
   if (handleWaitLine(lineLower, ctx)) return
   if (handleExerciseLine(line, ctx)) return
+  if (handleStopwatchLine(lineLower, ctx, millis)) return
+  if (handleCountdownLine(lineLower, ctx, millis)) return
   if (handleEmomLabel(lineLower, ctx)) return
-  if (handleForTimeLine(lineLower, ctx)) return
-  if (handleAmrapLine(lineLower, ctx)) return
-  if (handleTimeTypeLine(lineLower, ctx)) return
+  if (handleForTimeLine(lineLower, ctx, millis)) return
+  if (handleAmrapLine(lineLower, ctx, millis)) return
+  if (handleTimeTypeLine(lineLower, ctx, millis)) return
   if (handleStandaloneRestLine(lineLower, ctx)) return
   if (handleBlockTypeKeyword(lineLower, ctx)) return
   if (handleRepeatLine(lineLower, ctx)) return
-  handleTimeLine(lineLower, ctx)
+  handleTimeLine(lineLower, ctx, millis)
 }
 
 export function parseCustomWorkout(text: string): ParsedWorkout {

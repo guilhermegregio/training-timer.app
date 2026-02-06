@@ -136,6 +136,16 @@ function updateTimerControls(): void {
     return
   }
 
+  // Stopwatch phase - same controls as native stopwatch (Lap button)
+  if (phase?.type === 'stopwatch') {
+    controls.innerHTML = `
+      <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
+      <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">Pause</button>
+      <button class="btn btn-secondary" onclick="window.timerApp.addLap()">Lap</button>
+    `
+    return
+  }
+
   // Handle regular wait phase (isWait indicates a phase that counts up without time limit)
   if (phase?.isWait) {
     controls.innerHTML = `
@@ -146,19 +156,22 @@ function updateTimerControls(): void {
     return
   }
 
+  const isAmrap = type === 'amrap' || phase?.label === 'amrap'
+  const isForTime = type === 'fortime' || phase?.label === 'fortime'
+
   if (type === 'stopwatch') {
     controls.innerHTML = `
       <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
       <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">Pause</button>
       <button class="btn btn-secondary" onclick="window.timerApp.addLap()">Lap</button>
     `
-  } else if (type === 'amrap') {
+  } else if (isAmrap) {
     controls.innerHTML = `
       <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
       <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">Pause</button>
       <button class="btn btn-primary" onclick="window.timerApp.addRound()">+1 Round</button>
     `
-  } else if (type === 'fortime') {
+  } else if (isForTime) {
     controls.innerHTML = `
       <button class="btn btn-danger" onclick="window.timerApp.stopTimer()">Stop</button>
       <button class="btn btn-secondary" id="btn-pause" onclick="window.timerApp.togglePause()">Pause</button>
@@ -369,15 +382,16 @@ function updateExerciseDisplay(phase: Phase): void {
 
 function getDisplayColor(phase: Phase): string {
   const phaseColor = PHASE_COLORS[phase.type] || 'var(--text-primary)'
-  return phase.isWait ? PHASE_COLORS.work : phaseColor
+  return phase.isWait && phase.type !== 'stopwatch' ? PHASE_COLORS.work : phaseColor
 }
 
 function updatePhaseLabel(phase: Phase, color: string): void {
   const el = $id('timer-phase')
   if (!el) return
-  const label = phase.isWait
-    ? 'WORK!'
-    : phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
+  const label =
+    phase.isWait && phase.type !== 'stopwatch'
+      ? 'WORK!'
+      : phase.type.toUpperCase() + (phase.type === 'work' ? '!' : '')
   el.textContent = label
   el.style.color = color
 }
@@ -386,7 +400,8 @@ function shouldCountUp(phase: Phase): boolean {
   return (
     phase.isWait ||
     timerState.type === 'stopwatch' ||
-    (timerState.type === 'amrap' && phase.type === 'work') ||
+    phase.type === 'stopwatch' ||
+    ((timerState.type === 'amrap' || phase.label === 'amrap') && phase.type === 'work') ||
     (timerState.type === 'fortime' &&
       phase.type === 'work' &&
       phase.duration === Number.POSITIVE_INFINITY)
@@ -399,13 +414,13 @@ function updateTimeDisplay(phase: Phase, color: string): void {
 
   if (shouldCountUp(phase)) {
     const settings = settingsManager.get()
-    el.textContent =
-      settings.millis && timerState.type === 'stopwatch'
-        ? formatTimeMillis(timerState.currentPhaseTime)
-        : formatTime(Math.floor(timerState.currentPhaseTime))
+    const useMillis = phase.millis || (settings.millis && timerState.type === 'stopwatch')
+    el.textContent = useMillis
+      ? formatTimeMillis(timerState.currentPhaseTime)
+      : formatTime(Math.floor(timerState.currentPhaseTime))
   } else {
     const remaining = Math.max(0, phase.duration - timerState.currentPhaseTime)
-    el.textContent = formatTime(Math.ceil(remaining))
+    el.textContent = phase.millis ? formatTimeMillis(remaining) : formatTime(Math.ceil(remaining))
   }
   el.style.color = color
 }
@@ -421,8 +436,8 @@ function getInfoText(phase: Phase): string {
     const totalRounds = timerState.phases.filter((p) => p.type === 'work').length
     return `Round ${phase.round}/${totalRounds}`
   }
-  if (timerState.type === 'amrap') return `Rounds: ${timerState.rounds}`
-  if (timerState.type === 'stopwatch' && timerState.laps.length > 0)
+  if (timerState.type === 'amrap' || phase.label === 'amrap') return `Rounds: ${timerState.rounds}`
+  if ((timerState.type === 'stopwatch' || phase.type === 'stopwatch') && timerState.laps.length > 0)
     return `Laps: ${timerState.laps.length}`
   return ''
 }
@@ -503,6 +518,37 @@ function updateTimeCapDisplay(): void {
   }
 }
 
+function renderLapList(phase: Phase): void {
+  const el = $id('timer-laps')
+  if (!el) return
+
+  const isStopwatch = timerState.type === 'stopwatch' || phase.type === 'stopwatch'
+  if (!isStopwatch || timerState.laps.length === 0) {
+    el.innerHTML = ''
+    return
+  }
+
+  const laps = timerState.laps
+  let bestIdx = -1
+  let worstIdx = -1
+  if (laps.length >= 3) {
+    bestIdx = 0
+    worstIdx = 0
+    for (let i = 1; i < laps.length; i++) {
+      if (laps[i]!.split < laps[bestIdx]!.split) bestIdx = i
+      if (laps[i]!.split > laps[worstIdx]!.split) worstIdx = i
+    }
+  }
+
+  let html = ''
+  for (let i = laps.length - 1; i >= 0; i--) {
+    const lap = laps[i]!
+    const cls = i === bestIdx ? ' lap-best' : i === worstIdx ? ' lap-worst' : ''
+    html += `<div class="lap-item${cls}"><span>Lap ${lap.lap}</span><span>${formatTimeMillis(lap.split)}</span></div>`
+  }
+  el.innerHTML = html
+}
+
 function updateTimerDisplay(): void {
   const phase = timerState.phases[timerState.currentPhaseIndex]
   if (!phase) return
@@ -520,6 +566,7 @@ function updateTimerDisplay(): void {
   updateProgressBar(phase, color)
   updateStats(phase)
   updateTimeCapDisplay()
+  renderLapList(phase)
 }
 
 export function togglePause(): void {
@@ -685,12 +732,25 @@ function showCompleteScreen(): void {
     `
 
     if (timerState.laps.length > 0) {
-      stats.innerHTML += `
-        <div class="stat-item" style="grid-column: span 2;">
-          <div class="stat-value">${timerState.laps.length}</div>
-          <div class="stat-label">Laps</div>
-        </div>
-      `
+      const laps = timerState.laps
+      let bestIdx = -1
+      let worstIdx = -1
+      if (laps.length >= 3) {
+        bestIdx = 0
+        worstIdx = 0
+        for (let i = 1; i < laps.length; i++) {
+          if (laps[i]!.split < laps[bestIdx]!.split) bestIdx = i
+          if (laps[i]!.split > laps[worstIdx]!.split) worstIdx = i
+        }
+      }
+      let lapsHtml = '<div class="laps-container" style="grid-column: span 2;">'
+      for (let i = laps.length - 1; i >= 0; i--) {
+        const lap = laps[i]!
+        const cls = i === bestIdx ? ' lap-best' : i === worstIdx ? ' lap-worst' : ''
+        lapsHtml += `<div class="lap-item${cls}"><span>Lap ${lap.lap}</span><span>${formatTimeMillis(lap.split)}</span><span>${formatTimeMillis(lap.total)}</span></div>`
+      }
+      lapsHtml += '</div>'
+      stats.innerHTML += lapsHtml
     }
   }
 

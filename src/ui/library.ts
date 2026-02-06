@@ -82,7 +82,7 @@ export function playWorkout(id: number, openTimerFn: (type: string) => void): vo
 
   libraryManager.markUsed(id)
 
-  if (workout.type === 'custom' && workout.textDefinition) {
+  if (workout.textDefinition) {
     const settings = settingsManager.get()
     const defaultMetro = {
       ...DEFAULT_METRONOME_SETTINGS,
@@ -100,6 +100,10 @@ export function playWorkout(id: number, openTimerFn: (type: string) => void): vo
     if (!config.parsed.phases || config.parsed.phases.length === 0) {
       alert('Invalid workout definition')
       return
+    }
+
+    if (workout.countdown && workout.countdown > 0) {
+      config.parsed.phases.unshift({ type: 'prepare', duration: workout.countdown })
     }
 
     audioManager.init()
