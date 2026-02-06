@@ -89,6 +89,127 @@ class LibraryManagerClass {
         w.tags?.some((t) => t.toLowerCase().includes(lowerQuery))
     )
   }
+
+  seedDefaults(): void {
+    if (this.getAll().length > 0) return
+    this.add({
+      name: 'Strength Tendons',
+      type: 'custom',
+      tags: ['tendons', 'isometric', 'strength'],
+      textDefinition: `warmup
+10s
+
+# calf raise hold
+30s work
+- calf raise hold
+
+60s rest
+
+# spanish squat hold
+30s work
+- spanish squat hold
+
+60s rest
+
+# deep push up isometric hold
+20s work
+- deep push up isometric hold
+
+60s rest
+
+# wall external rotation hold
+30s work
+- wall external rotation hold
+10s rest
+30s work
+- wall external rotation hold
+
+60s rest
+
+# active dead hang
+20s work
+- active dead hang`,
+    })
+    this.add({
+      name: 'Fortalecimento Fullbody DB',
+      type: 'custom',
+      tags: ['fullbody', 'dumbbell', 'strength'],
+      textDefinition: `# air squat
+2x
+wait work
+- air squat (20x)
+60s rest
+
+# lunge
+2x
+wait work
+- lunge (20x)
+60s rest
+
+# calf raise + pogos
+2x
+wait work
+- calf raise (20x)
+- pogo jump (20x)
+- pogo jump unilateral (10x)
+- pogo jump unilateral (10x)
+60s rest
+
+# push up
+2x
+wait work
+- push up (20x)
+60s rest
+
+# goblet squat
+2x
+wait work
+- goblet squat (20x)
+60s rest
+
+# overhead lunge
+2x
+wait work
+- overhead lunge (20x)
+60s rest
+
+# goblet lunge
+2x
+wait work
+- goblet lunge (20x)
+60s rest
+
+# thruster
+2x
+wait work
+- thruster (20x)
+60s rest
+
+# press
+2x
+wait work
+- press (20x)
+60s rest
+
+# db bench over row
+2x
+wait work
+- bench over row (20x)
+60s rest
+
+# hammer curl
+2x
+wait work
+- hammer curl (20x)
+60s rest
+
+# calf raise
+2x
+wait work
+- calf raise (20x)
+60s rest`,
+    })
+  }
 }
 
 export const libraryManager = new LibraryManagerClass()

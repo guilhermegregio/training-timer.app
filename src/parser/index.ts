@@ -25,12 +25,10 @@ function expandExercisePhases(phases: Phase[]): Phase[] {
       const ex = phase.exercises[idx]
       if (!ex) continue
       result.push({
+        ...phase,
         type: 'work',
         duration: Number.POSITIVE_INFINITY,
         isWait: true,
-        label: phase.label,
-        customLabel: phase.customLabel,
-        metronome: phase.metronome,
         exercises: [ex],
         exerciseIndex: idx + 1,
         exerciseCount,
@@ -49,7 +47,7 @@ function shouldExpandPhase(phase: Phase): boolean {
     phase.type === 'work' &&
     !!phase.exercises &&
     phase.exercises.length > 1 &&
-    (phase.label === 'fortime' || phase.label === 'amrap')
+    (phase.isWait || phase.label === 'fortime' || phase.label === 'amrap')
   )
 }
 
@@ -333,18 +331,20 @@ function handleExerciseLine(line: string, ctx: ParserContext): boolean {
   const exercise = parseExercise(line.slice(1).trim())
   ctx.currentExercises.push(exercise)
 
-  if (ctx.phases.length > 0) {
-    const lastPhase = ctx.phases[ctx.phases.length - 1]
-    if (lastPhase) {
-      if (!lastPhase.exercises) lastPhase.exercises = []
-      lastPhase.exercises.push(exercise)
+  if (!ctx.inRepeat) {
+    if (ctx.phases.length > 0) {
+      const lastPhase = ctx.phases[ctx.phases.length - 1]
+      if (lastPhase) {
+        if (!lastPhase.exercises) lastPhase.exercises = []
+        lastPhase.exercises.push(exercise)
+      }
     }
-  }
-  if (ctx.blocks.length > 0) {
-    const lastBlock = ctx.blocks[ctx.blocks.length - 1]
-    if (lastBlock) {
-      if (!lastBlock.exercises) lastBlock.exercises = []
-      lastBlock.exercises.push(exercise)
+    if (ctx.blocks.length > 0) {
+      const lastBlock = ctx.blocks[ctx.blocks.length - 1]
+      if (lastBlock) {
+        if (!lastBlock.exercises) lastBlock.exercises = []
+        lastBlock.exercises.push(exercise)
+      }
     }
   }
   return true

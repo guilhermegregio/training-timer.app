@@ -1,10 +1,26 @@
 import { audioManager, libraryManager, settingsManager, wakeLockManager } from '@/managers'
 import { parseCustomWorkout } from '@/parser'
 import { startTimer } from '@/timers'
-import type { CustomConfig } from '@/types'
+import type { CustomConfig, SavedWorkout } from '@/types'
 import { DEFAULT_METRONOME_SETTINGS } from '@/types'
 import { $id, escapeHtml, getInputValue } from '@/utils'
 import { openSaveModal } from './modals'
+
+function extractExerciseLabels(textDefinition: string): string {
+  const labels = textDefinition
+    .split('\n')
+    .filter((l) => l.trim().startsWith('#'))
+    .map((l) => l.trim().slice(1).trim())
+    .filter((l) => l.length > 0)
+  return labels.join(' · ')
+}
+
+function renderWorkoutPreview(w: SavedWorkout): string {
+  if (!w.textDefinition) return ''
+  const preview = extractExerciseLabels(w.textDefinition)
+  if (!preview) return ''
+  return `<div class="workout-item-preview">${escapeHtml(preview)}</div>`
+}
 
 export function renderLibrary(): void {
   const workouts = libraryManager.getAll()
@@ -43,6 +59,7 @@ export function renderLibrary(): void {
         <span class="badge badge-${w.type}">${w.type}</span>
         <span>Used ${w.useCount}x</span>
       </div>
+      ${renderWorkoutPreview(w)}
       <div class="workout-item-actions">
         <button class="btn btn-primary" onclick="window.timerApp.playWorkout(${w.id})">Play</button>
         <button class="btn btn-secondary" onclick="window.timerApp.editWorkout(${w.id})">Edit</button>

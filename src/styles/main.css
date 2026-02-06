@@ -537,6 +537,15 @@ textarea {
   color: var(--text-secondary);
 }
 
+.workout-item-preview {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workout-item-actions {
   display: flex;
   gap: 8px;

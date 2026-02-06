@@ -1,7 +1,7 @@
 import './styles/main.css'
 import { registerSW } from 'virtual:pwa-register'
 
-import { wakeLockManager } from './managers'
+import { libraryManager, wakeLockManager } from './managers'
 import { applyCustomPreset, setBpm, toggleMetroEnabled, updateBpmSlider } from './timers/configs'
 import {
   addLap,
@@ -99,6 +99,7 @@ window.timerApp = timerApp
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+  libraryManager.seedDefaults()
   initSettingsUI()
 
   // Library search

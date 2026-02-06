@@ -137,7 +137,7 @@ function calculatePreviewStats(phases: { type: string; duration: number }[]): Pr
   }
 }
 
-function renderCustomPreviewStats(
+export function renderCustomPreviewStats(
   phases: { type: string; duration: number }[],
   blocks: WorkoutBlock[]
 ): string {

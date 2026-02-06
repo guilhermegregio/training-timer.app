@@ -1,4 +1,6 @@
 import { libraryManager } from '@/managers'
+import { parseCustomWorkout } from '@/parser'
+import { renderCustomPreviewStats } from '@/timers/configs'
 import type { SavedWorkout, TimerType } from '@/types'
 import { $id, addClass, escapeHtml, getInputValue, removeClass } from '@/utils'
 import { renderLibrary } from './library'
@@ -43,6 +45,7 @@ function renderSaveModalContent(workout: SavedWorkout | null): string {
       <label>Workout Definition (for custom)</label>
       <textarea id="save-text" class="text-editor" style="min-height: 120px;">${isEdit ? escapeHtml(workout.textDefinition || '') : ''}</textarea>
     </div>
+    <div id="modal-preview" class="preview-section"></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="window.timerApp.closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="window.timerApp.saveWorkout(${isEdit ? workout.id : 'null'})">${isEdit ? 'Update' : 'Save'}</button>
@@ -50,11 +53,39 @@ function renderSaveModalContent(workout: SavedWorkout | null): string {
   `
 }
 
+function updateModalPreview(): void {
+  const textEl = $id('save-text') as HTMLTextAreaElement | null
+  const previewEl = $id('modal-preview')
+  const typeEl = $id('save-type') as HTMLSelectElement | null
+  if (!previewEl || !textEl || typeEl?.value !== 'custom') {
+    if (previewEl) previewEl.innerHTML = ''
+    return
+  }
+  const text = textEl.value.trim()
+  if (!text) {
+    previewEl.innerHTML = ''
+    return
+  }
+  const result = parseCustomWorkout(text)
+  if (result.phases?.length > 0) {
+    previewEl.innerHTML = renderCustomPreviewStats(result.phases, result.blocks)
+  } else {
+    previewEl.innerHTML = ''
+  }
+}
+
 export function openSaveModal(workout: SavedWorkout | null = null): void {
   const modalContent = $id('modal-content')
   if (!modalContent) return
 
   modalContent.innerHTML = renderSaveModalContent(workout)
+
+  const textEl = $id('save-text') as HTMLTextAreaElement | null
+  const typeEl = $id('save-type') as HTMLSelectElement | null
+  if (textEl) textEl.addEventListener('input', updateModalPreview)
+  if (typeEl) typeEl.addEventListener('change', updateModalPreview)
+
+  updateModalPreview()
 
   const modalOverlay = $id('modal-overlay')
   if (modalOverlay) addClass(modalOverlay, 'active')
