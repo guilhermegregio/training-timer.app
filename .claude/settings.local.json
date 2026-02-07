@@ -24,7 +24,8 @@
       "Bash(npx biome check:*)",
       "Bash(npx vitest:*)",
       "Bash(pnpm format:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(npm run test:*)"
     ]
   },
   "enabledMcpjsonServers": [

@@ -408,6 +408,10 @@ function shouldCountUp(phase: Phase): boolean {
   )
 }
 
+function wrapDigits(text: string): string {
+  return text.replace(/\d/g, (d) => `<span class="timer-digit">${d}</span>`)
+}
+
 function updateTimeDisplay(phase: Phase, color: string): void {
   const el = $id('timer-time')
   if (!el) return
@@ -415,12 +419,22 @@ function updateTimeDisplay(phase: Phase, color: string): void {
   if (shouldCountUp(phase)) {
     const settings = settingsManager.get()
     const useMillis = phase.millis || (settings.millis && timerState.type === 'stopwatch')
-    el.textContent = useMillis
-      ? formatTimeMillis(timerState.currentPhaseTime)
-      : formatTime(Math.floor(timerState.currentPhaseTime))
+    if (useMillis) {
+      const formatted = formatTimeMillis(timerState.currentPhaseTime)
+      const dotIdx = formatted.lastIndexOf('.')
+      el.innerHTML = `${wrapDigits(formatted.slice(0, dotIdx))}<span class="timer-ms">${wrapDigits(formatted.slice(dotIdx))}</span>`
+    } else {
+      el.innerHTML = wrapDigits(formatTime(Math.floor(timerState.currentPhaseTime)))
+    }
   } else {
     const remaining = Math.max(0, phase.duration - timerState.currentPhaseTime)
-    el.textContent = phase.millis ? formatTimeMillis(remaining) : formatTime(Math.ceil(remaining))
+    if (phase.millis) {
+      const formatted = formatTimeMillis(remaining)
+      const dotIdx = formatted.lastIndexOf('.')
+      el.innerHTML = `${wrapDigits(formatted.slice(0, dotIdx))}<span class="timer-ms">${wrapDigits(formatted.slice(dotIdx))}</span>`
+    } else {
+      el.innerHTML = wrapDigits(formatTime(Math.ceil(remaining)))
+    }
   }
   el.style.color = color
 }
