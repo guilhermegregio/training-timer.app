@@ -1,6 +1,6 @@
 {
   "name": "training-timer-app",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "PWA workout timer with HIIT, EMOM, AMRAP, For Time, and custom workouts",
   "type": "module",
   "scripts": {
