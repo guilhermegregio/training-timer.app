@@ -403,6 +403,32 @@ fortime 10min
       expect(result.blocks[0]?.exercises?.[0]?.name).toBe('deadlift')
     })
 
+    it('exercises do not leak between consecutive work phases', () => {
+      const result = parseCustomWorkout(`
+60s work [6bpm]
+- burpee (6x)
+60s work [8bpm]
+- burpee (8x)
+60s work [10bpm]
+- burpee (10x)
+`)
+      expect(result.phases).toHaveLength(3)
+      expect(result.phases[0]?.exercises).toHaveLength(1)
+      expect(result.phases[0]?.exercises?.[0]?.reps).toBe(6)
+      expect(result.phases[1]?.exercises).toHaveLength(1)
+      expect(result.phases[1]?.exercises?.[0]?.reps).toBe(8)
+      expect(result.phases[2]?.exercises).toHaveLength(1)
+      expect(result.phases[2]?.exercises?.[0]?.reps).toBe(10)
+
+      expect(result.blocks).toHaveLength(3)
+      expect(result.blocks[0]?.exercises).toHaveLength(1)
+      expect(result.blocks[0]?.exercises?.[0]?.reps).toBe(6)
+      expect(result.blocks[1]?.exercises).toHaveLength(1)
+      expect(result.blocks[1]?.exercises?.[0]?.reps).toBe(8)
+      expect(result.blocks[2]?.exercises).toHaveLength(1)
+      expect(result.blocks[2]?.exercises?.[0]?.reps).toBe(10)
+    })
+
     it('fortime with multiple exercises expands to individual phases', () => {
       const result = parseCustomWorkout(`
 for time 10min

@@ -339,27 +339,38 @@ function handleWaitLine(lineLower: string, ctx: ParserContext): boolean {
   return true
 }
 
+function attachExerciseToLast(exercise: Exercise, ctx: ParserContext): boolean {
+  let attached = false
+  const lastPhase = ctx.phases[ctx.phases.length - 1]
+  if (lastPhase) {
+    if (!lastPhase.exercises) lastPhase.exercises = []
+    lastPhase.exercises.push(exercise)
+    attached = true
+  }
+  const lastBlock = ctx.blocks[ctx.blocks.length - 1]
+  if (lastBlock) {
+    if (!lastBlock.exercises) lastBlock.exercises = []
+    lastBlock.exercises.push(exercise)
+    attached = true
+  }
+  return attached
+}
+
 function handleExerciseLine(line: string, ctx: ParserContext): boolean {
   if (!line.startsWith('-') && !line.startsWith('•')) return false
 
   const exercise = parseExercise(line.slice(1).trim())
-  ctx.currentExercises.push(exercise)
 
-  if (!ctx.inRepeat) {
-    if (ctx.phases.length > 0) {
-      const lastPhase = ctx.phases[ctx.phases.length - 1]
-      if (lastPhase) {
-        if (!lastPhase.exercises) lastPhase.exercises = []
-        lastPhase.exercises.push(exercise)
-      }
-    }
-    if (ctx.blocks.length > 0) {
-      const lastBlock = ctx.blocks[ctx.blocks.length - 1]
-      if (lastBlock) {
-        if (!lastBlock.exercises) lastBlock.exercises = []
-        lastBlock.exercises.push(exercise)
-      }
-    }
+  if (ctx.inRepeat) {
+    ctx.currentExercises.push(exercise)
+    return true
+  }
+
+  // Attach directly to existing phase/block without buffering in
+  // currentExercises, which would leak into the next phase.
+  // Only buffer if no phase/block exists yet (exercises before any phase line).
+  if (!attachExerciseToLast(exercise, ctx)) {
+    ctx.currentExercises.push(exercise)
   }
   return true
 }
