@@ -72,18 +72,29 @@ training-timer.app/
 - **Biome** - Lint e formatação
 - **vite-plugin-pwa** - Service Worker automático
 - **Cloudflare Pages** - Deploy (wrangler)
+- **pnpm** - Gerenciador de pacotes
 
-## Scripts npm
+## Gerenciador de Pacotes
+
+**IMPORTANTE: Sempre usar `pnpm` em vez de `npm` para instalar dependências e rodar scripts.**
 
 ```bash
-npm run dev      # Vite dev server
-npm run build    # Build de produção
-npm run preview  # Preview do build
-npm run test     # Vitest
-npm run lint     # Biome lint
-npm run format   # Biome format
-npm run check    # Biome check (lint + format)
-npm run deploy   # wrangler pages deploy
+pnpm install     # Instalar dependências
+pnpm add <pkg>   # Adicionar dependência
+pnpm remove <pkg> # Remover dependência
+```
+
+## Scripts
+
+```bash
+pnpm run dev      # Vite dev server
+pnpm run build    # Build de produção
+pnpm run preview  # Preview do build
+pnpm run test     # Vitest
+pnpm run lint     # Biome lint
+pnpm run format   # Biome format
+pnpm run check    # Biome check (lint + format)
+pnpm run deploy   # wrangler pages deploy
 ```
 
 ## Managers (Singletons)
@@ -214,7 +225,7 @@ Em `utils/dom.ts`:
 ## Deploy
 
 ```bash
-npm run deploy  # Build + deploy para Cloudflare Pages
+pnpm run deploy  # Build + deploy para Cloudflare Pages
 ```
 
 Configuração em `wrangler.toml`.
@@ -222,8 +233,8 @@ Configuração em `wrangler.toml`.
 ## Testes
 
 ```bash
-npm test        # Modo watch
-npm run test:run # Rodar uma vez
+pnpm test        # Modo watch
+pnpm run test:run # Rodar uma vez
 ```
 
 Testes em `tests/` usando Vitest.
