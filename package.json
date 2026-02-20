@@ -1,6 +1,6 @@
 {
   "name": "training-timer-app",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "PWA workout timer with HIIT, EMOM, AMRAP, For Time, and custom workouts",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "lint": "biome lint ./src",
     "format": "biome format ./src --write",
     "check": "biome check ./src",
-    "deploy": "npm run build && wrangler pages deploy dist",
+    "deploy": "pnpm run build && wrangler pages deploy dist",
     "generate-icons": "node scripts/generate-icons.mjs"
   },
   "devDependencies": {
