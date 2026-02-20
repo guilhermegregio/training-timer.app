@@ -3,7 +3,7 @@ import { parseCustomWorkout } from '@/parser'
 import { startTimer } from '@/timers'
 import type { CustomConfig, SavedWorkout } from '@/types'
 import { DEFAULT_METRONOME_SETTINGS } from '@/types'
-import { $id, escapeHtml, getInputValue } from '@/utils'
+import { $id, escapeHtml, getInputValue, shareWorkout } from '@/utils'
 import { openSaveModal } from './modals'
 
 function extractExerciseLabels(textDefinition: string): string {
@@ -62,6 +62,7 @@ export function renderLibrary(): void {
       ${renderWorkoutPreview(w)}
       <div class="workout-item-actions">
         <button class="btn btn-primary" onclick="window.timerApp.playWorkout(${w.id})">Play</button>
+        <button class="btn btn-secondary" onclick="window.timerApp.shareWorkout(${w.id})">Share</button>
         <button class="btn btn-secondary" onclick="window.timerApp.editWorkout(${w.id})">Edit</button>
         <button class="btn btn-secondary" onclick="window.timerApp.deleteWorkout(${w.id})">Delete</button>
       </div>
@@ -113,6 +114,20 @@ export function playWorkout(id: number, openTimerFn: (type: string) => void): vo
   } else {
     openTimerFn(workout.type)
   }
+}
+
+export function shareWorkoutById(id: number): void {
+  const workout = libraryManager.getById(id)
+  if (!workout) return
+
+  shareWorkout({
+    name: workout.name,
+    type: workout.type,
+    textDefinition: workout.textDefinition,
+    description: workout.description,
+    tags: workout.tags,
+    countdown: workout.countdown,
+  })
 }
 
 export function editWorkout(id: number): void {

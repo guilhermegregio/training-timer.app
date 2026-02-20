@@ -2,7 +2,16 @@ import { libraryManager } from '@/managers'
 import { parseCustomWorkout } from '@/parser'
 import { renderCustomPreviewStats } from '@/timers/configs'
 import type { SavedWorkout, TimerType } from '@/types'
-import { $id, addClass, escapeHtml, getInputNumber, getInputValue, removeClass } from '@/utils'
+import {
+  $id,
+  addClass,
+  clearShareParam,
+  escapeHtml,
+  getInputNumber,
+  getInputValue,
+  removeClass,
+} from '@/utils'
+import type { SharedWorkout } from '@/utils/share'
 import { renderLibrary } from './library'
 
 function renderTypeSelect(selectedType: TimerType | undefined): string {
@@ -174,6 +183,79 @@ export function saveWorkout(id: number | null): void {
     libraryManager.add(workout)
   }
 
+  closeModal()
+  renderLibrary()
+}
+
+function renderSharedWorkoutPreview(workout: SharedWorkout): string {
+  if (!workout.textDefinition) return ''
+  const result = parseCustomWorkout(workout.textDefinition)
+  if (result.phases?.length > 0) {
+    return renderCustomPreviewStats(result.phases, result.blocks)
+  }
+  return ''
+}
+
+export function openShareImportModal(workout: SharedWorkout): void {
+  const modalContent = $id('modal-content')
+  if (!modalContent) return
+
+  const tagsHtml = workout.tags?.length
+    ? `<div class="share-import-tags">${workout.tags.map((t) => `<span class="badge badge-custom">${escapeHtml(t)}</span>`).join(' ')}</div>`
+    : ''
+
+  const descHtml = workout.description
+    ? `<p class="share-import-desc">${escapeHtml(workout.description)}</p>`
+    : ''
+
+  const preview = renderSharedWorkoutPreview(workout)
+
+  modalContent.innerHTML = `
+    <h2>Shared Workout</h2>
+    <div class="share-import-header">
+      <span class="share-import-name">${escapeHtml(workout.name)}</span>
+      <span class="badge badge-${workout.type}">${workout.type}</span>
+    </div>
+    ${descHtml}
+    ${tagsHtml}
+    ${preview ? `<div class="preview-section">${preview}</div>` : ''}
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="window.timerApp.closeShareImport()">Cancel</button>
+      <button class="btn btn-primary" onclick="window.timerApp.saveSharedWorkout()">Save to Library</button>
+    </div>
+  `
+
+  const modalOverlay = $id('modal-overlay')
+  if (modalOverlay) addClass(modalOverlay, 'active')
+}
+
+let pendingSharedWorkout: SharedWorkout | null = null
+
+export function showShareImport(workout: SharedWorkout): void {
+  pendingSharedWorkout = workout
+  openShareImportModal(workout)
+}
+
+export function closeShareImport(): void {
+  pendingSharedWorkout = null
+  clearShareParam()
+  closeModal()
+}
+
+export function saveSharedWorkout(): void {
+  if (!pendingSharedWorkout) return
+
+  libraryManager.add({
+    name: pendingSharedWorkout.name,
+    type: pendingSharedWorkout.type,
+    textDefinition: pendingSharedWorkout.textDefinition,
+    description: pendingSharedWorkout.description,
+    tags: pendingSharedWorkout.tags,
+    countdown: pendingSharedWorkout.countdown,
+  })
+
+  pendingSharedWorkout = null
+  clearShareParam()
   closeModal()
   renderLibrary()
 }

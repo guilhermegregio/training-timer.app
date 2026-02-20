@@ -22,9 +22,17 @@ import {
   editWorkout,
   playWorkout,
   renderLibrary,
+  shareWorkoutById,
   toggleFavorite,
 } from './ui/library'
-import { closeModal, openSaveModal, saveWorkout } from './ui/modals'
+import {
+  closeModal,
+  closeShareImport,
+  openSaveModal,
+  saveSharedWorkout,
+  saveWorkout,
+  showShareImport,
+} from './ui/modals'
 import { switchTab } from './ui/navigation'
 import { applyPreset, closeConfig, openTimer, startTimerFromConfig } from './ui/screens'
 import {
@@ -38,7 +46,7 @@ import {
   updateMetronomeVolume,
   updateBpm as updateSettingsBpm,
 } from './ui/settings'
-import { $id } from './utils'
+import { $id, getSharedWorkoutFromUrl } from './utils'
 
 // Expose functions to window for onclick handlers
 declare global {
@@ -82,8 +90,13 @@ const timerApp = {
   saveWorkout,
   toggleFavorite,
   playWorkout: (id: number) => playWorkout(id, openTimer),
+  shareWorkout: shareWorkoutById,
   editWorkout,
   deleteWorkout,
+
+  // Share import
+  closeShareImport,
+  saveSharedWorkout,
 
   // Settings
   toggleSetting,
@@ -112,6 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const importInput = $id('import-input')
   if (importInput) {
     importInput.addEventListener('change', handleImport)
+  }
+
+  // Check for shared workout in URL
+  const sharedWorkout = getSharedWorkoutFromUrl()
+  if (sharedWorkout) {
+    switchTab('library')
+    showShareImport(sharedWorkout)
   }
 })
 
