@@ -1171,6 +1171,27 @@ textarea {
   font-size: 0.75rem;
 }
 
+/* Sub-phases preview within repeat blocks */
+.preview-subphases {
+  margin-top: 8px;
+}
+
+.preview-subphase {
+  margin-bottom: 4px;
+}
+
+.preview-subphase-header {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 4px 0 2px 4px;
+}
+
+.preview-subphase-rest {
+  font-size: 0.8rem;
+  color: var(--phase-rest);
+  padding: 6px 0 2px 4px;
+}
+
 /* Timer execution - block label and exercise */
 .timer-block-label {
   text-align: center;

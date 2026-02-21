@@ -1,6 +1,6 @@
 import { settingsManager } from '@/managers'
 import { customPresets, parseCustomWorkout } from '@/parser'
-import type { Exercise, MetronomeSettings, TimerConfig, WorkoutBlock } from '@/types'
+import type { Exercise, MetronomeSettings, Phase, TimerConfig, WorkoutBlock } from '@/types'
 import { $id, formatTime, getInputNumber } from '@/utils'
 import type { TimerDefinition } from './types'
 
@@ -479,22 +479,73 @@ function getBlockTypeLabel(type: string): string {
   return labels[type] ?? type.toUpperCase()
 }
 
+function formatRestDuration(seconds: number): string {
+  if (seconds === Number.POSITIVE_INFINITY) return '∞'
+  if (seconds < 60) return `${seconds}s`
+  if (seconds % 60 === 0) return `${seconds / 60}min`
+  const min = Math.floor(seconds / 60)
+  const sec = seconds % 60
+  return `${min}:${String(sec).padStart(2, '0')}`
+}
+
+function renderFlatExercises(exercises?: Exercise[]): string {
+  if (!exercises?.length) return ''
+  const html = exercises
+    .map(
+      (ex) => `
+      <div class="preview-exercise">
+        <span class="exercise-name">${ex.name}</span>
+        <span class="exercise-meta">${formatExerciseMeta(ex)}</span>
+      </div>
+    `
+    )
+    .join('')
+  return `<div class="preview-exercises">${html}</div>`
+}
+
+function renderSubPhasesPreview(subPhases: Phase[]): string {
+  const html = subPhases
+    .map((phase) => {
+      if (phase.type === 'rest') {
+        return `<div class="preview-subphase-rest">${formatRestDuration(phase.duration)} rest</div>`
+      }
+
+      if (!phase.exercises?.length) return ''
+
+      const exerciseHtml = phase.exercises
+        .map(
+          (ex) => `
+          <div class="preview-exercise">
+            <span class="exercise-name">${ex.name}</span>
+            <span class="exercise-meta">${formatExerciseMeta(ex)}</span>
+          </div>
+        `
+        )
+        .join('')
+
+      const label = phase.isWait ? 'wait ' : ''
+      const typeLabel = phase.type === 'work' ? 'work' : phase.type
+
+      return `
+        <div class="preview-subphase">
+          <div class="preview-subphase-header">&#9656; ${label}${typeLabel}</div>
+          <div class="preview-exercises">${exerciseHtml}</div>
+        </div>
+      `
+    })
+    .join('')
+
+  return `<div class="preview-subphases">${html}</div>`
+}
+
 function renderBlockPreview(blocks: WorkoutBlock[]): string {
   if (!blocks.length) return ''
 
   const blockHtml = blocks
     .map((block) => {
-      const exercises =
-        block.exercises
-          ?.map(
-            (ex) => `
-        <div class="preview-exercise">
-          <span class="exercise-name">${ex.name}</span>
-          <span class="exercise-meta">${formatExerciseMeta(ex)}</span>
-        </div>
-      `
-          )
-          .join('') ?? ''
+      const contentHtml = block.subPhases
+        ? renderSubPhasesPreview(block.subPhases)
+        : renderFlatExercises(block.exercises)
 
       // Show ∞ for wait blocks, otherwise show the total duration
       const hasWaitPhases = block.phases.some((p) => p.isWait)
@@ -521,7 +572,7 @@ function renderBlockPreview(blocks: WorkoutBlock[]): string {
           ${metroStr}
           ${durationStr}
         </div>
-        ${exercises ? `<div class="preview-exercises">${exercises}</div>` : ''}
+        ${contentHtml}
       </div>
     `
     })

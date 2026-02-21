@@ -154,6 +154,9 @@ interface ParserContext {
   repeatLabel: string | null
   repeatMetronome: number | null
   repeatMetronomeMode: MetronomeMode | null
+  repeatExplicitClose: boolean
+  explicitCloseRepeats: Set<number>
+  currentLineIndex: number
   nextBlockId: number
 }
 
@@ -172,6 +175,9 @@ function createContext(): ParserContext {
     repeatLabel: null,
     repeatMetronome: null,
     repeatMetronomeMode: null,
+    repeatExplicitClose: false,
+    explicitCloseRepeats: new Set(),
+    currentLineIndex: 0,
     nextBlockId: 0,
   }
 }
@@ -182,7 +188,8 @@ function createBlock(
   label?: string,
   repetitions?: number,
   exercises?: Exercise[],
-  metronome?: number
+  metronome?: number,
+  subPhases?: Phase[]
 ): WorkoutBlock {
   return {
     type,
@@ -195,6 +202,7 @@ function createBlock(
     repetitions,
     exercises: exercises?.length ? exercises : undefined,
     metronome,
+    subPhases: subPhases?.length ? subPhases : undefined,
   }
 }
 
@@ -215,6 +223,7 @@ function resetRepeatState(ctx: ParserContext): void {
   ctx.repeatLabel = null
   ctx.repeatMetronome = null
   ctx.repeatMetronomeMode = null
+  ctx.repeatExplicitClose = false
 }
 
 function expandRepeatPhases(ctx: ParserContext): Phase[] {
@@ -254,15 +263,30 @@ function closeRepeat(ctx: ParserContext): void {
     return
   }
 
+  const phaseExercises = ctx.repeatPhases.flatMap((p) => p.exercises ?? [])
   const blockPhases = expandRepeatPhases(ctx)
+  const blockExercises =
+    phaseExercises.length > 0
+      ? phaseExercises
+      : ctx.currentExercises.length > 0
+        ? ctx.currentExercises
+        : undefined
+
+  // Save sub-phases template for structured preview when repeat is complex
+  const phasesWithExercises = ctx.repeatPhases.filter((p) => p.exercises?.length).length
+  const isComplex =
+    phasesWithExercises > 1 || (ctx.repeatPhases.length > 2 && phasesWithExercises > 0)
+  const subPhases = isComplex ? [...ctx.repeatPhases] : undefined
+
   ctx.blocks.push(
     createBlock(
       ctx.repeatLabel === 'tabata' ? 'tabata' : 'work',
       blockPhases,
       ctx.currentCustomLabel ?? ctx.repeatLabel ?? undefined,
       ctx.repeatCount,
-      ctx.currentExercises.length > 0 ? ctx.currentExercises : undefined,
-      ctx.repeatMetronome ?? undefined
+      blockExercises,
+      ctx.repeatMetronome ?? undefined,
+      subPhases
     )
   )
   ctx.currentExercises = []
@@ -279,6 +303,7 @@ function handleCommentLine(rawLine: string, ctx: ParserContext): boolean {
 
 function handleEmptyLine(rawLine: string, ctx: ParserContext): boolean {
   if (rawLine !== '') return false
+  if (ctx.inRepeat && ctx.repeatExplicitClose) return true
   closeRepeat(ctx)
   return true
 }
@@ -362,7 +387,13 @@ function handleExerciseLine(line: string, ctx: ParserContext): boolean {
   const exercise = parseExercise(line.slice(1).trim())
 
   if (ctx.inRepeat) {
-    ctx.currentExercises.push(exercise)
+    const lastRepeatPhase = ctx.repeatPhases[ctx.repeatPhases.length - 1]
+    if (lastRepeatPhase) {
+      if (!lastRepeatPhase.exercises) lastRepeatPhase.exercises = []
+      lastRepeatPhase.exercises.push(exercise)
+    } else {
+      ctx.currentExercises.push(exercise)
+    }
     return true
   }
 
@@ -609,6 +640,11 @@ function handleStandaloneRestLine(lineLower: string, ctx: ParserContext): boolea
   const duration = parseTimeDuration(lineLower)
   if (duration <= 0) return false
 
+  if (ctx.inRepeat) {
+    ctx.repeatPhases.push({ type: 'rest', duration })
+    return true
+  }
+
   closeRepeat(ctx)
   flushCurrentBlock(ctx)
   const phase: Phase = { type: 'rest', duration, customLabel: ctx.currentCustomLabel ?? undefined }
@@ -652,6 +688,7 @@ function handleRepeatLine(lineLower: string, ctx: ParserContext): boolean {
     ctx.inRepeat = true
     ctx.repeatPhases = []
     ctx.repeatLabel = 'tabata'
+    ctx.repeatExplicitClose = ctx.explicitCloseRepeats.has(ctx.currentLineIndex)
     ctx.repeatMetronome = ctx.currentMetronome
     ctx.repeatMetronomeMode = ctx.currentMetronomeMode
     ctx.currentMetronome = null
@@ -666,6 +703,7 @@ function handleRepeatLine(lineLower: string, ctx: ParserContext): boolean {
     ctx.inRepeat = true
     ctx.repeatPhases = []
     ctx.repeatLabel = ctx.currentBlockType ?? null
+    ctx.repeatExplicitClose = ctx.explicitCloseRepeats.has(ctx.currentLineIndex)
     ctx.repeatMetronome = ctx.currentMetronome
     ctx.repeatMetronomeMode = ctx.currentMetronomeMode
     ctx.currentMetronome = null
@@ -776,9 +814,52 @@ function extractLineConfigs(
   return { line: cleanedLine, lineLower: cleanedLine.toLowerCase(), millis }
 }
 
+function isRepeatStart(line: string): boolean {
+  return !!line.match(/^(\d+)x$/) || !!line.match(/^(tabata|hiit|intervals?)\s*(\d+)x?$/i)
+}
+
+function isRepeatCloser(line: string): boolean {
+  return line === 'end' || line === 'endrepeat' || !!line.match(/^-{3,}$/)
+}
+
+function isSectionBreak(line: string): boolean {
+  return ['warmup', 'warm up', 'warm-up', 'cooldown', 'cool down', 'cool-down'].includes(line)
+}
+
+function findExplicitCloseRepeats(lines: string[]): Set<number> {
+  const result = new Set<number>()
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i]?.trim().toLowerCase() ?? ''
+    if (!isRepeatStart(lower)) continue
+
+    for (let j = i + 1; j < lines.length; j++) {
+      const check = lines[j]?.trim().toLowerCase() ?? ''
+      if (isRepeatStart(check) || isSectionBreak(check)) break
+      if (isRepeatCloser(check)) {
+        result.add(i)
+        break
+      }
+    }
+  }
+  return result
+}
+
+function handleSeparatorLine(rawLine: string, ctx: ParserContext): boolean {
+  if (!rawLine.match(/^-{3,}$/)) return false
+  closeRepeat(ctx)
+  flushCurrentBlock(ctx)
+  ctx.currentBlockType = null
+  ctx.currentCustomLabel = null
+  ctx.currentMetronome = null
+  ctx.currentMetronomeMode = null
+  ctx.currentExercises = []
+  return true
+}
+
 function processLine(rawLine: string, ctx: ParserContext): void {
   if (handleCommentLine(rawLine, ctx)) return
   if (handleEmptyLine(rawLine, ctx)) return
+  if (handleSeparatorLine(rawLine, ctx)) return
 
   const { line, lineLower, millis } = extractLineConfigs(rawLine, ctx)
 
@@ -803,8 +884,11 @@ export function parseCustomWorkout(text: string): ParsedWorkout {
     .split('\n')
     .map((l) => l.trim())
 
-  for (const rawLine of lines) {
-    processLine(rawLine, ctx)
+  ctx.explicitCloseRepeats = findExplicitCloseRepeats(lines)
+
+  for (let i = 0; i < lines.length; i++) {
+    ctx.currentLineIndex = i
+    processLine(lines[i] ?? '', ctx)
   }
 
   closeRepeat(ctx)

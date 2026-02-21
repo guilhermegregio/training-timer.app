@@ -574,4 +574,225 @@ cooldown
       expect(result.phases).toHaveLength(1)
     })
   })
+
+  describe('explicit repeat blocks with end', () => {
+    it('repeat with end groups complex blocks with empty lines', () => {
+      const result = parseCustomWorkout(`
+4x
+wait work
+- KB swing (20x)
+
+60s rest
+
+wait work
+- Goblet squat (20x)
+
+90s rest
+end
+`)
+      // Per round: wait work + 60s rest + wait work + 90s rest = 4 phases
+      // 4 rounds * 4 phases = 16 phases
+      // wait work phases expand exercises: each wait work has 1 exercise
+      expect(result.phases).toHaveLength(16)
+      for (let round = 0; round < 4; round++) {
+        const base = round * 4
+        // First wait work
+        expect(result.phases[base]).toMatchObject({
+          type: 'work',
+          duration: Number.POSITIVE_INFINITY,
+          isWait: true,
+        })
+        expect(result.phases[base]?.exercises?.[0]?.name).toBe('KB swing')
+        // 60s rest
+        expect(result.phases[base + 1]).toMatchObject({
+          type: 'rest',
+          duration: 60,
+        })
+        // Second wait work
+        expect(result.phases[base + 2]).toMatchObject({
+          type: 'work',
+          duration: Number.POSITIVE_INFINITY,
+          isWait: true,
+        })
+        expect(result.phases[base + 2]?.exercises?.[0]?.name).toBe('Goblet squat')
+        // 90s rest
+        expect(result.phases[base + 3]).toMatchObject({
+          type: 'rest',
+          duration: 90,
+        })
+      }
+    })
+
+    it('empty lines inside explicit repeat are ignored', () => {
+      const result = parseCustomWorkout(`
+2x
+30s work
+
+10s rest
+end
+`)
+      // 2 rounds * (work + rest) = 4 phases
+      expect(result.phases).toHaveLength(4)
+      expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[1]).toMatchObject({ type: 'rest', duration: 10 })
+      expect(result.phases[2]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[3]).toMatchObject({ type: 'rest', duration: 10 })
+    })
+
+    it('exercises attach to their respective wait phases inside repeat', () => {
+      const result = parseCustomWorkout(`
+2x
+wait work
+- push up (10x)
+- pull up (5x)
+
+wait work
+- squat (20x)
+
+60s rest
+end
+`)
+      // Per round: wait work (2 exercises expand to 2) + wait work (1 exercise) + rest = 4 phases after expansion
+      // 2 rounds * 4 = 8 phases
+      expect(result.phases).toHaveLength(8)
+      // First round, first wait work expanded
+      expect(result.phases[0]?.exercises?.[0]?.name).toBe('push up')
+      expect(result.phases[1]?.exercises?.[0]?.name).toBe('pull up')
+      // First round, second wait work
+      expect(result.phases[2]?.exercises?.[0]?.name).toBe('squat')
+      // First round, rest
+      expect(result.phases[3]).toMatchObject({ type: 'rest', duration: 60 })
+      expect(result.phases[3]?.exercises).toBeUndefined()
+    })
+
+    it('repeat without end still closes on empty line (backward compat)', () => {
+      const result = parseCustomWorkout(`
+3x
+30s work
+
+60s rest
+`)
+      // 3x closes on empty line, then 60s rest is separate
+      expect(result.phases).toHaveLength(4)
+      expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[1]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[2]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[3]).toMatchObject({ type: 'rest', duration: 60 })
+    })
+  })
+
+  describe('separator ---', () => {
+    it('--- separates independent sections', () => {
+      const result = parseCustomWorkout(`
+2x
+30s work
+10s rest
+end
+
+---
+
+2x
+20s work
+5s rest
+end
+`)
+      // Section 1: 2 * (30s work + 10s rest) = 4
+      // Section 2: 2 * (20s work + 5s rest) = 4
+      expect(result.phases).toHaveLength(8)
+      expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[1]).toMatchObject({ type: 'rest', duration: 10 })
+      expect(result.phases[4]).toMatchObject({ type: 'work', duration: 20 })
+      expect(result.phases[5]).toMatchObject({ type: 'rest', duration: 5 })
+    })
+
+    it('--- closes an open repeat block', () => {
+      const result = parseCustomWorkout(`
+2x
+30s work
+10s rest
+---
+60s work
+`)
+      // 2 * (30s work + 10s rest) = 4, then 60s work = 1
+      expect(result.phases).toHaveLength(5)
+      expect(result.phases[4]).toMatchObject({ type: 'work', duration: 60 })
+    })
+
+    it('--- is not confused with exercise lines', () => {
+      const result = parseCustomWorkout(`
+fortime 10min
+- push up (20x)
+`)
+      // Exercise line starts with - but is not ---
+      expect(result.phases).toHaveLength(1)
+      expect(result.phases[0]?.exercises?.[0]?.name).toBe('push up')
+    })
+
+    it('multiple --- separators chain sections', () => {
+      const result = parseCustomWorkout(`
+30s work
+---
+20s work
+---
+10s work
+`)
+      expect(result.phases).toHaveLength(3)
+      expect(result.phases[0]).toMatchObject({ type: 'work', duration: 30 })
+      expect(result.phases[1]).toMatchObject({ type: 'work', duration: 20 })
+      expect(result.phases[2]).toMatchObject({ type: 'work', duration: 10 })
+    })
+
+    it('long separator with many dashes works', () => {
+      const result = parseCustomWorkout(`
+30s work
+------
+20s work
+`)
+      expect(result.phases).toHaveLength(2)
+    })
+
+    it('full complex workout with end and ---', () => {
+      const result = parseCustomWorkout(`
+4x
+wait work
+- KB swing (20x|@24kg)
+- DB clean (15x|@15kg)
+
+60s rest
+
+wait work
+- Goblet squat (20x)
+
+90s rest
+end
+
+---
+
+3x
+wait work
+- push up
+- air squat
+
+60s rest
+end
+`)
+      // Section 1: 4 rounds * (wait work [2 exercises expand to 2] + 60s rest + wait work [1 exercise] + 90s rest) = 4 * 5 = 20
+      // Section 2: 3 rounds * (wait work [2 exercises expand to 2] + 60s rest) = 3 * 3 = 9
+      expect(result.phases).toHaveLength(29)
+
+      // Verify section 1, round 1
+      expect(result.phases[0]?.exercises?.[0]?.name).toBe('KB swing')
+      expect(result.phases[0]?.exercises?.[0]?.reps).toBe(20)
+      expect(result.phases[0]?.exercises?.[0]?.weight).toBe(24)
+      expect(result.phases[1]?.exercises?.[0]?.name).toBe('DB clean')
+      expect(result.phases[2]).toMatchObject({ type: 'rest', duration: 60 })
+      expect(result.phases[3]?.exercises?.[0]?.name).toBe('Goblet squat')
+      expect(result.phases[4]).toMatchObject({ type: 'rest', duration: 90 })
+
+      // Verify section 2, round 1
+      expect(result.phases[20]?.exercises?.[0]?.name).toBe('push up')
+      expect(result.phases[21]?.exercises?.[0]?.name).toBe('air squat')
+      expect(result.phases[22]).toMatchObject({ type: 'rest', duration: 60 })
+    })
+  })
 })

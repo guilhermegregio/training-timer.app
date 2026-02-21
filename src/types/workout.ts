@@ -88,6 +88,7 @@ export interface WorkoutBlock {
   repetitions?: number
   exercises?: Exercise[]
   metronome?: number
+  subPhases?: Phase[]
 }
 
 export interface ParsedWorkout {

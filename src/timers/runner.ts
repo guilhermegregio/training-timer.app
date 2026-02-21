@@ -5,11 +5,39 @@ import {
   speechManager,
   wakeLockManager,
 } from '@/managers'
-import type { MetronomeSettings, Phase, TimerConfig, TimerState, TimerType } from '@/types'
+import type { Lap, MetronomeSettings, Phase, TimerConfig, TimerState, TimerType } from '@/types'
 import { PHASE_COLORS } from '@/types'
 import { $id, addClass, formatTime, formatTimeMillis, removeClass } from '@/utils'
 import { buildPhases } from './builder'
 import { setMetronomePaused, startMetronomeForPhase, stopMetronome } from './metronome'
+
+function findBestWorstLapIndices(laps: Lap[]): { bestIdx: number; worstIdx: number } {
+  if (laps.length < 3) return { bestIdx: -1, worstIdx: -1 }
+  let bestIdx = 0
+  let worstIdx = 0
+  for (let i = 1; i < laps.length; i++) {
+    const lap = laps[i]
+    if (!lap) continue
+    const best = laps[bestIdx]
+    const worst = laps[worstIdx]
+    if (best && lap.split < best.split) bestIdx = i
+    if (worst && lap.split > worst.split) worstIdx = i
+  }
+  return { bestIdx, worstIdx }
+}
+
+function renderLapItems(laps: Lap[], showTotal: boolean): string {
+  const { bestIdx, worstIdx } = findBestWorstLapIndices(laps)
+  let html = ''
+  for (let i = laps.length - 1; i >= 0; i--) {
+    const lap = laps[i]
+    if (!lap) continue
+    const cls = i === bestIdx ? ' lap-best' : i === worstIdx ? ' lap-worst' : ''
+    const totalCol = showTotal ? `<span>${formatTimeMillis(lap.total)}</span>` : ''
+    html += `<div class="lap-item${cls}"><span>Lap ${lap.lap}</span><span>${formatTimeMillis(lap.split)}</span>${totalCol}</div>`
+  }
+  return html
+}
 
 function formatExerciseDisplay(phase: Phase): string {
   if (!phase.exercises?.length) return ''
@@ -542,25 +570,7 @@ function renderLapList(phase: Phase): void {
     return
   }
 
-  const laps = timerState.laps
-  let bestIdx = -1
-  let worstIdx = -1
-  if (laps.length >= 3) {
-    bestIdx = 0
-    worstIdx = 0
-    for (let i = 1; i < laps.length; i++) {
-      if (laps[i]!.split < laps[bestIdx]!.split) bestIdx = i
-      if (laps[i]!.split > laps[worstIdx]!.split) worstIdx = i
-    }
-  }
-
-  let html = ''
-  for (let i = laps.length - 1; i >= 0; i--) {
-    const lap = laps[i]!
-    const cls = i === bestIdx ? ' lap-best' : i === worstIdx ? ' lap-worst' : ''
-    html += `<div class="lap-item${cls}"><span>Lap ${lap.lap}</span><span>${formatTimeMillis(lap.split)}</span></div>`
-  }
-  el.innerHTML = html
+  el.innerHTML = renderLapItems(timerState.laps, false)
 }
 
 function updateTimerDisplay(): void {
@@ -730,44 +740,29 @@ function completeWorkout(): void {
   showCompleteScreen()
 }
 
-function showCompleteScreen(): void {
+function renderCompleteStats(): void {
   const stats = $id('complete-stats')
-  if (stats) {
-    const workPhases = timerState.phases.filter((p) => p.type === 'work')
-    stats.innerHTML = `
-      <div class="stat-item">
-        <div class="stat-value">${formatTime(Math.floor(timerState.totalElapsed))}</div>
-        <div class="stat-label">Total Time</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">${timerState.rounds || workPhases.length}</div>
-        <div class="stat-label">Rounds</div>
-      </div>
-    `
+  if (!stats) return
 
-    if (timerState.laps.length > 0) {
-      const laps = timerState.laps
-      let bestIdx = -1
-      let worstIdx = -1
-      if (laps.length >= 3) {
-        bestIdx = 0
-        worstIdx = 0
-        for (let i = 1; i < laps.length; i++) {
-          if (laps[i]!.split < laps[bestIdx]!.split) bestIdx = i
-          if (laps[i]!.split > laps[worstIdx]!.split) worstIdx = i
-        }
-      }
-      let lapsHtml = '<div class="laps-container" style="grid-column: span 2;">'
-      for (let i = laps.length - 1; i >= 0; i--) {
-        const lap = laps[i]!
-        const cls = i === bestIdx ? ' lap-best' : i === worstIdx ? ' lap-worst' : ''
-        lapsHtml += `<div class="lap-item${cls}"><span>Lap ${lap.lap}</span><span>${formatTimeMillis(lap.split)}</span><span>${formatTimeMillis(lap.total)}</span></div>`
-      }
-      lapsHtml += '</div>'
-      stats.innerHTML += lapsHtml
-    }
+  const workPhases = timerState.phases.filter((p) => p.type === 'work')
+  stats.innerHTML = `
+    <div class="stat-item">
+      <div class="stat-value">${formatTime(Math.floor(timerState.totalElapsed))}</div>
+      <div class="stat-label">Total Time</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${timerState.rounds || workPhases.length}</div>
+      <div class="stat-label">Rounds</div>
+    </div>
+  `
+
+  if (timerState.laps.length > 0) {
+    stats.innerHTML += `<div class="laps-container" style="grid-column: span 2;">${renderLapItems(timerState.laps, true)}</div>`
   }
+}
 
+function showCompleteScreen(): void {
+  renderCompleteStats()
   const completeScreen = $id('complete-screen')
   if (completeScreen) addClass(completeScreen, 'active')
 }
