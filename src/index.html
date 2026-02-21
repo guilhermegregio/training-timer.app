@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Timer" />
-    <title>Workout Timer</title>
+    <title>Training Timer</title>
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <!-- iOS Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
@@ -67,7 +67,7 @@
   <body>
     <!-- Header -->
     <header class="header">
-      <h1>WORKOUT TIMER</h1>
+      <h1>TRAINING TIMER</h1>
     </header>
 
     <!-- Main Content -->
@@ -294,6 +294,99 @@
           </div>
         </div>
       </div>
+
+      <!-- Donate Tab -->
+      <div id="tab-donate" class="tab">
+        <div class="donate-hero">
+          <div class="icon">&#10084;&#65039;</div>
+          <h2 class="donate-title">SUPPORT THIS APP</h2>
+          <p class="donate-subtitle">
+            This app is free, open source, and ad-free.<br />
+            Your support keeps it alive and growing!
+          </p>
+        </div>
+
+        <div class="settings-section">
+          <h3>Why Donate?</h3>
+          <div class="donate-reasons">
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>100% Free & Open Source</span>
+            </div>
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>No Ads, Ever</span>
+            </div>
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>Works Completely Offline</span>
+            </div>
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>Regular Updates & Improvements</span>
+            </div>
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>Privacy-Focused</span>
+            </div>
+            <div class="donate-reason">
+              <span class="check">&#10003;</span>
+              <span>Motivate the developer to keep going</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>&#127463;&#127479; Pix (Brazil)</h3>
+          <p class="donate-method-desc">
+            Free instant transfer for Brazilians. Copy the code below and paste in your bank app.
+          </p>
+          <div class="pix-qr-code">
+            <img src="/qr-code-plus.svg" alt="Pix QR Code" />
+          </div>
+          <div class="pix-code-container">
+            <span class="pix-code" id="pix-code">2706658d-8ffe-4a23-92cc-f29fdb45bfe9</span>
+            <button class="pix-copy-btn" id="pix-copy-btn" onclick="window.timerApp.copyPixCode()">
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>&#9749; Ko-fi</h3>
+          <p class="donate-method-desc">
+            0% platform fee on tips. No account needed. Pay with card, Apple Pay, or Google Pay.
+          </p>
+          <a
+            href="https://ko-fi.com/trainingtimer"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="donate-link donate-link-kofi"
+          >
+            &#9749; Buy me a coffee on Ko-fi
+          </a>
+        </div>
+
+        <div class="settings-section">
+          <h3>&#11088; GitHub Sponsors</h3>
+          <p class="donate-method-desc">
+            0% platform fee. Best for international supporters. Requires a GitHub account.
+          </p>
+          <a
+            href="https://github.com/sponsors/guilhermegregio"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="donate-link donate-link-github"
+          >
+            &#10084;&#65039; Sponsor on GitHub
+          </a>
+        </div>
+
+        <div class="donate-thanks">
+          &#128154; Every contribution makes a difference.<br />
+          Thank you for supporting open source!
+        </div>
+      </div>
     </main>
 
     <!-- Bottom Navigation -->
@@ -320,6 +413,14 @@
           />
         </svg>
         Settings
+      </button>
+      <button class="nav-item" onclick="window.timerApp.switchTab('donate')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path
+            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          />
+        </svg>
+        Donate
       </button>
     </nav>
 

@@ -1,9 +1,9 @@
 import { $$, $id } from '@/utils'
 import { renderLibrary } from './library'
 
-export type TabName = 'timers' | 'library' | 'settings'
+export type TabName = 'timers' | 'library' | 'settings' | 'donate'
 
-const TABS: TabName[] = ['timers', 'library', 'settings']
+const TABS: TabName[] = ['timers', 'library', 'settings', 'donate']
 
 export function switchTab(tab: TabName): void {
   $$('.tab').forEach((t) => {

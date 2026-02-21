@@ -83,7 +83,7 @@ export function exportData(): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `workout-timer-backup-${new Date().toISOString().split('T')[0]}.json`
+  a.download = `training-timer-backup-${new Date().toISOString().split('T')[0]}.json`
   a.click()
   URL.revokeObjectURL(url)
 }

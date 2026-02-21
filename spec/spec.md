@@ -1,4 +1,4 @@
-# Workout Timer PWA v2 - Especificação Completa
+# Training Timer PWA v2 - Especificação Completa
 
 ## Visão Geral
 
@@ -20,7 +20,7 @@ Aplicativo PWA de timer para treinos com suporte a múltiplos tipos de timer, co
 ## Estrutura de Arquivos
 
 ```
-workout-timer/
+training-timer/
 ├── index.html          # App principal (single file com CSS e JS inline)
 ├── sw.js               # Service Worker para cache offline
 ├── manifest.json       # Web App Manifest para instalação PWA

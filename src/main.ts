@@ -48,6 +48,34 @@ import {
 } from './ui/settings'
 import { $id, getSharedWorkoutFromUrl } from './utils'
 
+const PIX_CODE = '2706658d-8ffe-4a23-92cc-f29fdb45bfe9'
+
+function copyPixCode(): void {
+  const btn = $id('pix-copy-btn') as HTMLButtonElement | null
+  const copy = () => {
+    if (btn) {
+      btn.textContent = 'Copied!'
+      setTimeout(() => {
+        btn.textContent = 'Copy'
+      }, 2000)
+    }
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(PIX_CODE).then(copy)
+  } else {
+    const textarea = document.createElement('textarea')
+    textarea.value = PIX_CODE
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    copy()
+  }
+}
+
 // Expose functions to window for onclick handlers
 declare global {
   interface Window {
@@ -97,6 +125,9 @@ const timerApp = {
   // Share import
   closeShareImport,
   saveSharedWorkout,
+
+  // Donate
+  copyPixCode,
 
   // Settings
   toggleSetting,

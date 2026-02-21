@@ -1,4 +1,4 @@
-# Workout Timer App
+# Training Timer App
 
 ## Estrutura do Projeto
 

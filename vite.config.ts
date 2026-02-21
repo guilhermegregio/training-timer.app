@@ -25,9 +25,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png'],
       manifest: {
-        name: 'Workout Timer',
+        name: 'Training Timer',
         short_name: 'Timer',
-        description: 'PWA workout timer with HIIT, EMOM, AMRAP, For Time, and custom workouts',
+        description: 'PWA training timer with HIIT, EMOM, AMRAP, For Time, and custom workouts',
         start_url: '/',
         display: 'standalone',
         background_color: '#0a0a0f',
