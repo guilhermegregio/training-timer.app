@@ -24,7 +24,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       manifestFilename: 'manifest.json',
-      includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png'],
+      includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png', 'screenshots/*.png'],
       manifest: {
         id: '/',
         name: 'Training Timer',
@@ -60,6 +60,15 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
+          },
+        ],
+        screenshots: [
+          {
+            src: 'screenshots/screenshot-1.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Timer selection screen',
           },
         ],
         categories: ['fitness', 'health', 'sports'],
