@@ -23,12 +23,15 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png'],
+      manifestFilename: 'manifest.json',
+      includeAssets: ['icons/icon.svg', 'icons/*.png', 'splash/*.png', 'screenshots/*.png'],
       manifest: {
+        id: '/',
         name: 'Training Timer',
         short_name: 'Timer',
         description: 'PWA training timer with HIIT, EMOM, AMRAP, For Time, and custom workouts',
         start_url: '/',
+        scope: '/',
         display: 'standalone',
         background_color: '#0a0a0f',
         theme_color: '#00d4ff',
@@ -44,12 +47,28 @@ export default defineConfig({
             src: 'icons/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: 'icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+        screenshots: [
+          {
+            src: 'screenshots/screenshot-1.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Timer selection screen',
           },
         ],
         categories: ['fitness', 'health', 'sports'],
